@@ -26,3 +26,7 @@ name = "tlg5-encode"
 harness = false
 path = "bench/tlg5_encode.rs"
 
+[[bench]]
+name = "tlg5-decode"
+harness = false
+path = "bench/tlg5_decode.rs"
