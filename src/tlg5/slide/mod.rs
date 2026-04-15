@@ -347,7 +347,7 @@ impl SlideCompressor {
     }
 }
 
-
+#[cfg(test)]
 mod test
 {
     use super::SlideCompressor;

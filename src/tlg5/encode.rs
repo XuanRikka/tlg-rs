@@ -90,17 +90,17 @@ impl TlgEncoderTrait for Tlg5Encoder
                     }
                     // 原编码器使用的是BGR颜色空间，所以此处修改为RGB
                     match self.pixel {
-                        PixelLayout::Gray => cmpbuf[0][inp] = val[0] as i8 as u8,
+                        PixelLayout::Gray => cmpbuf[0][inp] = val[0] as u8,
                         PixelLayout::Rgb => {
-                            cmpbuf[0][inp] = (val[2] - val[1]) as i8 as u8; // B - G
-                            cmpbuf[1][inp] = val[1] as i8 as u8;            // G
-                            cmpbuf[2][inp] = (val[0] - val[1]) as i8 as u8; // R - G
+                            cmpbuf[0][inp] = (val[2] - val[1]) as u8; // B - G
+                            cmpbuf[1][inp] = val[1] as u8;            // G
+                            cmpbuf[2][inp] = (val[0] - val[1]) as u8; // R - G
                         }
                         PixelLayout::Rgba => {
-                            cmpbuf[0][inp] = (val[2] - val[1]) as i8 as u8; // B - G
-                            cmpbuf[1][inp] = val[1] as i8 as u8;            // G
-                            cmpbuf[2][inp] = (val[0] - val[1]) as i8 as u8; // R - G
-                            cmpbuf[3][inp] = val[3] as i8 as u8;            // A
+                            cmpbuf[0][inp] = (val[2] - val[1]) as u8; // B - G
+                            cmpbuf[1][inp] = val[1] as u8;            // G
+                            cmpbuf[2][inp] = (val[0] - val[1]) as u8; // R - G
+                            cmpbuf[3][inp] = val[3] as u8;            // A
                         }
                     }
                     inp += 1;

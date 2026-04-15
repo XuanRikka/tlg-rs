@@ -1,8 +1,5 @@
 pub mod tlg5;
 pub mod tlg_trait;
-
-use std::collections::HashMap;
-use std::error::Error;
 // use crate::tlg5::encode::Tlg5Encoder;
 // use crate::tlg_trait::{PixelLayout, TlgEncoderTrait};
 // use crate::TlgType::Tlg5;
