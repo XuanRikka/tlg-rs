@@ -8,12 +8,12 @@ struct Chain {
 }
 
 pub struct SlideCompressor {
-    text: Vec<u8>,
+    text: Box<[u8; SLIDE_N + SLIDE_M - 1]>,
     s: usize,
     map: Box<[i32; 256 * 256]>,
     chains: Vec<Chain>,
 
-    backup_text: Vec<u8>,
+    backup_text: Box<[u8; SLIDE_N + SLIDE_M - 1]>,
     backup_s: usize,
     backup_map: Box<[i32; 256 * 256]>,
     backup_chains: Vec<Chain>,
@@ -22,7 +22,7 @@ pub struct SlideCompressor {
 impl SlideCompressor {
     pub fn new() -> Self {
         let mut compressor = SlideCompressor {
-            text: vec![0; SLIDE_N + SLIDE_M - 1],
+            text: Box::new([0; SLIDE_N + SLIDE_M - 1]),
             s: 0,
             map: Box::new([-1; 256 * 256]),
             chains: vec![
@@ -33,7 +33,7 @@ impl SlideCompressor {
                 SLIDE_N
             ],
 
-            backup_text: vec![0; SLIDE_N + SLIDE_M - 1],
+            backup_text: Box::new([0; SLIDE_N + SLIDE_M - 1]),
             backup_s: 0,
             backup_map: Box::new([-1; 256 * 256]),
             backup_chains: vec![Chain { prev: -1, next: -1 }; SLIDE_N],
@@ -333,14 +333,14 @@ impl SlideCompressor {
     }
 
     pub fn store(&mut self) {
-        self.backup_text.copy_from_slice(&self.text);
+        self.backup_text.copy_from_slice(self.text.as_slice());
         self.backup_s = self.s;
         self.backup_map.copy_from_slice(&*self.map);
         self.backup_chains.copy_from_slice(&self.chains);
     }
 
     pub fn restore(&mut self) {
-        self.text.copy_from_slice(&self.backup_text);
+        self.text.copy_from_slice(self.backup_text.as_slice());
         self.s = self.backup_s;
         self.map.copy_from_slice(&*self.backup_map);
         self.chains.copy_from_slice(&self.backup_chains);

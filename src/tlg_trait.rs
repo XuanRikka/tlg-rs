@@ -1,5 +1,6 @@
 use std::error::Error;
-use std::io::{Seek,Write};
+use std::io::{Read, Seek, Write};
+use std::path::Path;
 use image::DynamicImage;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -38,4 +39,21 @@ pub trait TlgEncoderTrait {
     fn from_raw(data: Vec<u8>, pixel_layout: PixelLayout, width: u32, height: u32) -> Self
     where
         Self: Sized;
+}
+
+
+pub trait TlgDecoderTrait {
+    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>>
+    where
+        Self: Sized;
+
+    fn from_reader<R: Read + Seek>(reader: R) -> Result<Self, Box<dyn Error>>
+    where
+        Self: Sized;
+
+    fn from_data(data: Vec<u8>) -> Result<Self, Box<dyn Error>>
+    where
+        Self: Sized;
+
+    fn decode(&self) -> Result<DynamicImage, Box<dyn Error>>;
 }

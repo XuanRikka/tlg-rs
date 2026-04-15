@@ -9,6 +9,7 @@ name = "tlg"
 crate-type = ["rlib"]
 
 [dependencies]
+byteorder = "1.5.0"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
 
 [dev-dependencies]

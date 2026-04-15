@@ -157,7 +157,7 @@ criterion_group!(
     bench_slide_compress,
     bench_slide_decompress,
     bench_store_restore,
-    bench_compress_with_backup,
-    bench_save_resume
+    // bench_compress_with_backup,
+    // bench_save_resume
 );
 criterion_main!(benches);
