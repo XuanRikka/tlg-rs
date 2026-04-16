@@ -1,3 +1,5 @@
+use std::io::Cursor;
+use std::process::exit;
 use criterion::{
     black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput,
 };
@@ -60,23 +62,29 @@ fn bench_encode_format(
     format_name: &str,
     gen_image: fn(u32, u32) -> DynamicImage,
     resolutions: &[(u32, u32)],
+    sizes: &[usize]
 ) {
     let mut group = c.benchmark_group(format!("encode_{}", format_name));
 
-    for &(w, h) in resolutions {
+    for (&(w, h), size)in resolutions.iter().zip(sizes.iter()) {
         let total_pixels = (w * h) as u64;
         group.throughput(Throughput::Elements(total_pixels));
 
         let image = gen_image(w, h);
         let encoder = Tlg5Encoder::from_image(&image).expect("failed to create encoder");
 
+        let size = encoder.encode().unwrap().len();
+
+        let mut buffer: Vec<u8> = Vec::with_capacity(size);
+
         group.bench_with_input(
             BenchmarkId::from_parameter(format!("{}x{}", w, h)),
             &encoder,
             |b, enc| {
                 b.iter(|| {
-                    let data = enc.encode().expect("encode failed");
-                    black_box(data);
+                    buffer.clear();
+                    let mut cur = Cursor::new(&mut buffer);
+                    enc.encode_to(&mut cur).expect("encode failed");
                 });
             },
         );
@@ -86,10 +94,13 @@ fn bench_encode_format(
 
 fn encode_benchmarks(c: &mut Criterion) {
     let resolutions = [(256, 256), (512, 512), (1024, 1024)];
+    let gray_sizes: [usize; 3] = [66136, 263320, 1050904];
+    let rgb_sizes: [usize; 3] = [197848, 788888, 3150616];
+    let rgba_sizes: [usize; 3] = [263704, 1051672, 4200472];
 
-    bench_encode_format(c, "gray", gen_gray_image, &resolutions);
-    bench_encode_format(c, "rgb", gen_rgb_image, &resolutions);
-    bench_encode_format(c, "rgba", gen_rgba_image, &resolutions);
+    bench_encode_format(c, "gray", gen_gray_image, &resolutions, &gray_sizes);
+    bench_encode_format(c, "rgb", gen_rgb_image, &resolutions, &rgb_sizes);
+    bench_encode_format(c, "rgba", gen_rgba_image, &resolutions, &rgba_sizes);
 }
 
 criterion_group!(benches, encode_benchmarks);
