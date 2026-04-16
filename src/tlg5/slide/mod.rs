@@ -285,18 +285,18 @@ impl SlideCompressor {
                     let c = self.text[pos];
                     out.push(c);
 
-                    let prev = (self.s + SLIDE_N - 1) & (SLIDE_N - 1);
-
-                    self.delete_map(prev);
-                    self.delete_map(self.s);
+                    // let prev = (self.s + SLIDE_N - 1) & (SLIDE_N - 1);
+                    //
+                    // self.delete_map(prev);
+                    // self.delete_map(self.s);
 
                     if self.s < SLIDE_M - 1 {
                         self.text[self.s + SLIDE_N] = c;
                     }
                     self.text[self.s] = c;
 
-                    self.add_map(prev);
-                    self.add_map(self.s);
+                    // self.add_map(prev);
+                    // self.add_map(self.s);
 
                     self.s = (self.s + 1) & (SLIDE_N - 1);
                     pos = (pos + 1) & (SLIDE_N - 1);
@@ -310,18 +310,18 @@ impl SlideCompressor {
                 i += 1;
                 out.push(c);
 
-                let prev = (self.s + SLIDE_N - 1) & (SLIDE_N - 1);
-
-                self.delete_map(prev);
-                self.delete_map(self.s);
+                // let prev = (self.s + SLIDE_N - 1) & (SLIDE_N - 1);
+                //
+                // self.delete_map(prev);
+                // self.delete_map(self.s);
 
                 if self.s < SLIDE_M - 1 {
                     self.text[self.s + SLIDE_N] = c;
                 }
                 self.text[self.s] = c;
 
-                self.add_map(prev);
-                self.add_map(self.s);
+                // self.add_map(prev);
+                // self.add_map(self.s);
 
                 self.s = (self.s + 1) & (SLIDE_N - 1);
             }
