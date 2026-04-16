@@ -1,26 +1,45 @@
 use std::hint::black_box;
+use std::path::Path;
 use criterion::{
     BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
 };
-use tlg::tlg5::slide::{SlideCompressor, SLIDE_N, SLIDE_M};
+use tlg::tlg5::slide::SlideCompressor;
 
-// 生成可压缩的测试数据（重复模式）
+const BENCH_SIZES: [usize; 3] = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024];
+
 fn prepare_input(size: usize) -> Vec<u8> {
-    let seed = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
-    let mut data = Vec::with_capacity(size);
-    while data.len() < size {
-        data.extend_from_slice(seed);
+    let path = Path::new("bench/data/slide_raw.bin");
+    let data = std::fs::read(path).unwrap_or_else(|err| {
+        panic!("failed to read {}: {err}", path.display());
+    });
+
+    let mut offset = 0usize;
+    for &chunk_size in &BENCH_SIZES {
+        let end = offset + chunk_size;
+        if data.len() < end {
+            panic!(
+                "{} is too short: expected at least {} bytes, got {} bytes",
+                path.display(),
+                end,
+                data.len()
+            );
+        }
+
+        if chunk_size == size {
+            return data[offset..end].to_vec();
+        }
+
+        offset = end;
     }
-    data.truncate(size);
-    data
+
+    panic!("unsupported bench input size: {size}");
 }
 
 // ---------- 原始压缩/解压基准 ----------
 fn bench_slide_compress(c: &mut Criterion) {
     let mut group = c.benchmark_group("slide_compress");
-    let sizes = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024];
 
-    for &size in &sizes {
+    for &size in &BENCH_SIZES {
         let data = prepare_input(size);
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &data, |b, input| {
@@ -39,9 +58,8 @@ fn bench_slide_compress(c: &mut Criterion) {
 
 fn bench_slide_decompress(c: &mut Criterion) {
     let mut group = c.benchmark_group("slide_decompress");
-    let sizes = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024];
 
-    for &size in &sizes {
+    for &size in &BENCH_SIZES {
         let data = prepare_input(size);
         let mut compressor = SlideCompressor::new();
         let compressed = compressor.encode(&data);
@@ -64,9 +82,8 @@ fn bench_slide_decompress(c: &mut Criterion) {
 // ---------- 回溯功能基准 ----------
 fn bench_store_restore(c: &mut Criterion) {
     let mut group = c.benchmark_group("store_restore");
-    let sizes = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024];
 
-    for &size in &sizes {
+    for &size in &BENCH_SIZES {
         let data = prepare_input(size);
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &data, |b, input| {
@@ -92,9 +109,8 @@ fn bench_store_restore(c: &mut Criterion) {
 
 fn bench_compress_with_backup(c: &mut Criterion) {
     let mut group = c.benchmark_group("compress_with_backup");
-    let sizes = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024];
 
-    for &size in &sizes {
+    for &size in &BENCH_SIZES {
         let data = prepare_input(size);
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &data, |b, input| {
