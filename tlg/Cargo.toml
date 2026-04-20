@@ -1,0 +1,37 @@
+[package]
+name = "tlg"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+name = "tlg"
+crate-type = ["rlib"]
+
+[dependencies]
+byteorder = "1.5.0"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+
+[dev-dependencies]
+criterion = "0.8.2"
+rand = "0.10.0"
+
+[[bench]]
+name = "slide-encode"
+harness = false
+path = "bench/slide_encode.rs"
+
+[[bench]]
+name = "slide-decode"
+harness = false
+path = "bench/slide_decode.rs"
+
+[[bench]]
+name = "tlg5-encode"
+harness = false
+path = "bench/tlg5_encode.rs"
+
+[[bench]]
+name = "tlg5-decode"
+harness = false
+path = "bench/tlg5_decode.rs"
