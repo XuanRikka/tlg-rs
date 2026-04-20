@@ -1,5 +1,6 @@
 pub mod tlg5;
 pub mod tlg_trait;
+pub mod tlg6;
 // use crate::tlg5::encode::Tlg5Encoder;
 // use crate::tlg_trait::{PixelLayout, TlgEncoderTrait};
 // use crate::TlgType::Tlg5;
