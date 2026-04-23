@@ -6,7 +6,7 @@ use criterion::{
     BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
 };
 use slide_common::{BENCH_SIZES, prepare_input};
-use tlg::tlg5::slide::SlideCompressor;
+use tlg::slide::SlideEncoder;
 
 fn bench_slide_compress(c: &mut Criterion) {
     let mut group = c.benchmark_group("slide_compress");
@@ -16,7 +16,7 @@ fn bench_slide_compress(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &data, |b, input| {
             b.iter_batched(
-                || SlideCompressor::new(),
+                || SlideEncoder::new(),
                 |mut comp| {
                     let out = comp.encode(black_box(input));
                     black_box(out);
@@ -37,7 +37,7 @@ fn bench_store_restore(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &data, |b, input| {
             b.iter_batched(
                 || {
-                    let mut comp = SlideCompressor::new();
+                    let mut comp = SlideEncoder::new();
                     let half = input.len() / 2;
                     comp.encode(&input[..half]);
                     comp

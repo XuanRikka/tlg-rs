@@ -6,20 +6,20 @@ use criterion::{
     BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
 };
 use slide_common::{BENCH_SIZES, prepare_input};
-use tlg::tlg5::slide::SlideCompressor;
+use tlg::slide::{SlideDecoder, SlideEncoder};
 
 fn bench_slide_decompress(c: &mut Criterion) {
     let mut group = c.benchmark_group("slide_decompress");
 
     for &size in &BENCH_SIZES {
         let data = prepare_input(size);
-        let mut compressor = SlideCompressor::new();
+        let mut compressor = SlideEncoder::new();
         let compressed = compressor.encode(&data);
 
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &compressed, |b, input| {
             b.iter_batched(
-                || SlideCompressor::new(),
+                || SlideDecoder::new(),
                 |mut decomp| {
                     let out = decomp.decode(black_box(input));
                     black_box(out);

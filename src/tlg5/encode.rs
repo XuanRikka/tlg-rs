@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, Write, SeekFrom};
 use image::DynamicImage;
-use crate::tlg5::slide::SlideCompressor;
+use crate::slide::SlideEncoder;
 use crate::tlg_trait::{PixelLayout, TlgEncoderTrait};
 use super::{TLG5_MAGIC,BLOCK_HEIGHT};
 
@@ -59,7 +59,7 @@ impl TlgEncoderTrait for Tlg5Encoder
         let stride = width * colors as usize;
 
         // 创建一个压缩器实例（复用）
-        let mut compressor = SlideCompressor::new();
+        let mut compressor = SlideEncoder::new();
 
         for block in 0..block_count {
             let blk_y = block * BLOCK_HEIGHT;

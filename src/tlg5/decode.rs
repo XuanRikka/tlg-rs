@@ -7,7 +7,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
 
 use super::{BLOCK_HEIGHT, TLG5_MAGIC};
-use crate::tlg5::slide::SlideCompressor;
+use crate::slide::SlideDecoder;
 use crate::tlg_trait::{PixelLayout, TlgDecoderTrait};
 
 pub struct Tlg5Decoder {
@@ -75,7 +75,7 @@ impl TlgDecoderTrait for Tlg5Decoder {
             block_sizes.push(cur.read_u32::<LittleEndian>()? as usize);
         }
 
-        let mut compressor = SlideCompressor::new();
+        let mut compressor = SlideDecoder::new();
         let stride = width * colors;
         let mut output = vec![0u8; stride * height];
 

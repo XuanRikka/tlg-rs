@@ -1,4 +1,3 @@
-pub mod slide;
 pub mod encode;
 pub mod decode;
 
