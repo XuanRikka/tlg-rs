@@ -35,3 +35,8 @@ path = "bench/tlg5_encode.rs"
 name = "tlg5-decode"
 harness = false
 path = "bench/tlg5_decode.rs"
+
+[[bench]]
+name = "tlg6-encode"
+harness = false
+path = "bench/tlg6_encode.rs"

@@ -112,7 +112,6 @@ impl TlgEncoderTrait for Tlg5Encoder
             for c in 0..colors as usize {
                 let raw_data = &cmpbuf[c][..inp];
 
-                // 保存压缩器当前状态（模仿 C++ 的 Store）
                 compressor.store();
 
                 let compressed = compressor.encode(raw_data);
