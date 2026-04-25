@@ -13,6 +13,11 @@ impl SlideDecoder {
         }
     }
 
+    pub fn init_with_text(&mut self, data: &[u8]) {
+        let len = data.len().min(SLIDE_N + SLIDE_M - 1);
+        self.text[..len].copy_from_slice(&data[..len]);
+    }
+
     pub fn decode(&mut self, input: &[u8]) -> Vec<u8> {
         let mut out = Vec::new();
 

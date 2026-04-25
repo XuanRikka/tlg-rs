@@ -8,6 +8,12 @@ license = "MIT"
 name = "tlg"
 crate-type = ["rlib"]
 
+[profile.release]
+debug = "full"
+
+[profile.bench]
+debug = "full"
+
 [dependencies]
 byteorder = "1.5.0"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
@@ -40,3 +46,8 @@ path = "bench/tlg5_decode.rs"
 name = "tlg6-encode"
 harness = false
 path = "bench/tlg6_encode.rs"
+
+[[bench]]
+name = "tlg6-decode"
+harness = false
+path = "bench/tlg6_decode.rs"

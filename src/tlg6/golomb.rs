@@ -215,6 +215,188 @@ pub(super) fn compress_values_golomb(bs: &mut TLG6BitStream, buf: &[i8]) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Leading zero table for fast gamma decoding
+// ---------------------------------------------------------------------------
+
+const LEADING_ZERO_TABLE_BITS: usize = 12;
+const LEADING_ZERO_TABLE_SIZE: usize = 1 << LEADING_ZERO_TABLE_BITS;
+
+const LEADING_ZERO_TABLE: [u8; LEADING_ZERO_TABLE_SIZE] = {
+    let mut table = [0u8; LEADING_ZERO_TABLE_SIZE];
+    let mut i = 0;
+    while i < LEADING_ZERO_TABLE_SIZE {
+        let mut cnt = 0;
+        let mut j = 1;
+        while j != LEADING_ZERO_TABLE_SIZE && (i & j) == 0 {
+            j <<= 1;
+            cnt += 1;
+        }
+        cnt += 1;
+        if j == LEADING_ZERO_TABLE_SIZE {
+            cnt = 0;
+        }
+        table[i] = cnt as u8;
+        i += 1;
+    }
+    table
+};
+
+// ---------------------------------------------------------------------------
+// Gamma decode (reads from a bit reader)
+// ---------------------------------------------------------------------------
+
+pub(super) fn decode_gamma(br: &mut super::bitstream::TLG6BitReader) -> u32 {
+    let mut bit_count = 0u32;
+
+    loop {
+        if br.exhausted() {
+            return 1;
+        }
+        let t = br.peek_u32_le();
+        let b = LEADING_ZERO_TABLE[(t & (LEADING_ZERO_TABLE_SIZE as u32 - 1)) as usize];
+        if b != 0 {
+            bit_count += b as u32;
+            br.skip_bits(b as u32);
+            break;
+        }
+        bit_count += LEADING_ZERO_TABLE_BITS as u32;
+        br.skip_bits(LEADING_ZERO_TABLE_BITS as u32);
+    }
+
+    bit_count -= 1;
+    let count = (1u32 << bit_count) + br.get_value(bit_count);
+    count
+}
+
+// ---------------------------------------------------------------------------
+// Golomb value decode
+// ---------------------------------------------------------------------------
+
+/// Decode a single non-zero signed value from the bitstream.
+/// Returns the signed value e (never zero).
+pub(super) fn decode_golomb_value(
+    br: &mut super::bitstream::TLG6BitReader,
+    a: &mut i32,
+    n: &mut i32,
+) -> i32 {
+    let k = GOLOMB_TABLE[*a as usize][*n as usize] as u32;
+
+    // Read 32-bit window BEFORE advancing the stream (same as C++ TVP_TLG6_FETCH_32BITS >> bit_pos)
+    let mut t = br.peek_u32_le();
+    let (bit_count, b) = if t != 0 {
+        let mut b = LEADING_ZERO_TABLE[(t & (LEADING_ZERO_TABLE_SIZE as u32 - 1)) as usize];
+        let mut bit_count = b as u32;
+        while b == 0 {
+            if br.exhausted() {
+                // exhausted mid-loop — give up reading this value
+                let old_pos = br.get_byte_pos();
+                let bc = br.peek_byte_at((old_pos + 4) as usize) as u32;
+                br.set_byte_pos(old_pos + 5);
+                t = br.peek_u32_le();
+                return finish_golomb_value(t, bc, k, a, n);
+            }
+            bit_count += LEADING_ZERO_TABLE_BITS as u32;
+            br.skip_bits(LEADING_ZERO_TABLE_BITS as u32);
+            t = br.peek_u32_le();
+            b = LEADING_ZERO_TABLE[(t & (LEADING_ZERO_TABLE_SIZE as u32 - 1)) as usize];
+            bit_count += b as u32;
+        }
+        bit_count -= 1;
+        // Don't skip bits yet — t still holds the window before the '1' terminator
+        (bit_count, b as u32)
+    } else {
+        // give-up: C++ does bit_pool += 5; bit_count = bit_pool[-1]; then re-read t
+        let old_pos = br.get_byte_pos();
+        let bit_count = br.peek_byte_at((old_pos + 4) as usize) as u32;
+        br.set_byte_pos(old_pos + 5);
+        t = br.peek_u32_le();
+        (bit_count, 0u32)
+    };
+
+    let v = (bit_count << k) + ((t >> b) & ((1 << k) - 1));
+    let sign = (v & 1).wrapping_sub(1) as i32;
+    let v_shifted = (v >> 1) as i32;
+    *a += v_shifted;
+    let e = (v_shifted ^ sign) + sign + 1;
+
+    // Now advance past the '1' terminator + k lower bits
+    br.skip_bits(b + k);
+
+    *n -= 1;
+    if *n < 0 {
+        *a >>= 1;
+        *n = (GOLOMB_N_COUNT - 1) as i32;
+    }
+
+    e
+}
+
+/// Shared tail of decode_golomb_value — compute the signed value and update state.
+#[inline]
+fn finish_golomb_value(t: u32, bit_count: u32, k: u32, a: &mut i32, n: &mut i32) -> i32 {
+    let v = (bit_count << k) + (t & ((1 << k) - 1));
+    let sign = (v & 1).wrapping_sub(1) as i32;
+    let v_shifted = (v >> 1) as i32;
+    *a += v_shifted;
+    let e = (v_shifted ^ sign) + sign + 1;
+
+    *n -= 1;
+    if *n < 0 {
+        *a >>= 1;
+        *n = (GOLOMB_N_COUNT - 1) as i32;
+    }
+
+    e
+}
+
+// ---------------------------------------------------------------------------
+// Golomb block decode — decodes a full channel's worth of values
+// ---------------------------------------------------------------------------
+
+pub(super) fn decode_golomb_channel(
+    br: &mut super::bitstream::TLG6BitReader,
+    dst: &mut [i8],
+    pixel_count: usize,
+    dst_stride: usize,
+    dst_offset: usize,
+    is_first_color: bool,
+) {
+    let mut n = (GOLOMB_N_COUNT - 1) as i32;
+    let mut a = 0i32;
+
+    let mut zero = !br.get_1bit();
+    let mut pixel_idx = 0usize;
+
+    while pixel_idx < pixel_count {
+        let count = decode_gamma(br) as usize;
+
+        if zero {
+            // zero run
+            if is_first_color {
+                for _ in 0..count {
+                    dst[pixel_idx * dst_stride + dst_offset] = 0;
+                    pixel_idx += 1;
+                }
+            } else {
+                for _ in 0..count {
+                    dst[pixel_idx * dst_stride + dst_offset] = 0;
+                    pixel_idx += 1;
+                }
+            }
+        } else {
+            // non-zero run
+            for _ in 0..count {
+                let e = decode_golomb_value(br, &mut a, &mut n);
+                dst[pixel_idx * dst_stride + dst_offset] = e as i8;
+                pixel_idx += 1;
+            }
+        }
+
+        zero = !zero;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,5 +412,15 @@ mod tests {
         assert_eq!(gamma_bit_length(2), 3);
         assert_eq!(gamma_bit_length(3), 3);
         assert_eq!(gamma_bit_length(4), 5);
+    }
+
+    #[test]
+    fn test_leading_zero_table() {
+        // bit 0 set → position 1
+        assert_eq!(LEADING_ZERO_TABLE[1], 1);
+        // bit 1 set → position 2
+        assert_eq!(LEADING_ZERO_TABLE[2], 2);
+        // all zeros → 0
+        assert_eq!(LEADING_ZERO_TABLE[0], 0);
     }
 }
