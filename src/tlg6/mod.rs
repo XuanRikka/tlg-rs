@@ -1,4 +1,4 @@
-mod bitstream;
+pub mod bitstream;
 mod golomb;
 mod filter;
 mod predict;

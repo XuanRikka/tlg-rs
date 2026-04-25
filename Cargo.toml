@@ -51,3 +51,13 @@ path = "bench/tlg6_encode.rs"
 name = "tlg6-decode"
 harness = false
 path = "bench/tlg6_decode.rs"
+
+[[bench]]
+name = "tlg6-bit-stream"
+harness = false
+path = "bench/tlg6_bit_stream.rs"
+
+[[bench]]
+name = "tlg6-bit-reader"
+harness = false
+path = "bench/tlg6_bit_reader.rs"

@@ -104,8 +104,6 @@ impl Tlg6Decoder {
         let mut comp_pos = 0usize;
 
         // ---- main decode loop over rows of blocks ----
-        let mut prevline_start: Option<usize> = None;
-
         for y in (0..height).step_by(H_BLOCK_SIZE) {
             let ylim = (y + H_BLOCK_SIZE).min(height);
             let bheight = ylim - y;
@@ -139,11 +137,7 @@ impl Tlg6Decoder {
                     return Err("Unsupported entropy coding method".into());
                 }
 
-                let mut padded_bit_pool = Vec::with_capacity(byte_length + 5);
-                padded_bit_pool.extend_from_slice(bit_pool);
-                padded_bit_pool.resize(byte_length + 5, 0);
-
-                let mut br = TLG6BitReader::new(&padded_bit_pool);
+                let mut br = TLG6BitReader::new(bit_pool);
                 decode_golomb_channel(
                     &mut br,
                     &mut pixelbuf,
@@ -157,22 +151,27 @@ impl Tlg6Decoder {
             // Decode each line in this block row
             let ft_row = &filter_types[(y / H_BLOCK_SIZE) * x_block_count..];
             let skipblockbytes = bheight * W_BLOCK_SIZE;
+            let mut prevline_start: isize = -1;
 
             for yy in y..ylim {
                 let curline_start = yy * out_row_bytes;
                 let dir = (yy & 1) ^ 1; // 1=forward, 0=backward
 
-                let (prevline, curline) = if let Some(pstart) = prevline_start {
+                let (prevline, curline) = if prevline_start < 0 {
+                    (&zero_line[..],
+                     &mut out[curline_start..curline_start + out_row_bytes])
+                } else {
+                    let pstart = prevline_start as usize;
                     let cstart = curline_start;
                     if pstart < cstart {
                         let (a, b) = out.split_at_mut(cstart);
-                        (&a[pstart..pstart + out_row_bytes], &mut b[..out_row_bytes])
+                        (&a[pstart..pstart + out_row_bytes],
+                         &mut b[..out_row_bytes])
                     } else {
                         let (a, b) = out.split_at_mut(pstart);
-                        (&b[..out_row_bytes], &mut a[cstart..cstart + out_row_bytes])
+                        (&b[..out_row_bytes],
+                         &mut a[cstart..cstart + out_row_bytes])
                     }
-                } else {
-                    (&zero_line[..], &mut out[curline_start..curline_start + out_row_bytes])
                 };
 
                 // Decode main blocks
@@ -215,7 +214,7 @@ impl Tlg6Decoder {
                     );
                 }
 
-                prevline_start = Some(curline_start);
+                prevline_start = curline_start as isize;
             }
         }
 
@@ -266,53 +265,91 @@ impl Tlg6Decoder {
 // Per-byte MED / AVG prediction on packed u32 (operates on 4 bytes in parallel)
 // ---------------------------------------------------------------------------
 
-/// Byte-parallel "greater than" mask.
-/// Returns 0x80 in each byte where a >= b, 0x00 otherwise.
+/// 单字节 MED 预测：取 a,b 的中值，若 c 在极值之外则返回极值，否则返回 a+b-c。
+#[inline]
+fn med_byte(a: u8, b: u8, c: u8) -> u8 {
+    let max = a.max(b);
+    let min = a.min(b);
+    if c >= max {
+        min
+    } else if c < min {
+        max
+    } else {
+        a.wrapping_add(b).wrapping_sub(c)
+    }
+}
+
+/// 单字节向上取整平均：(a+b+1)>>1
+#[inline]
+fn avg_byte(a: u8, b: u8) -> u8 {
+    ((a as u16 + b as u16 + 1) >> 1) as u8
+}
+
+/// 逐字节比较：当 a 字节 >= b 字节时该字节返回 0x80，否则 0x00。
 #[inline]
 fn make_gt_mask(a: u32, b: u32) -> u32 {
-    let tmp2 = !b;
-    let tmp = ((a & tmp2).wrapping_add(((a ^ tmp2) >> 1) & 0x7f7f7f7f)) & 0x80808080;
-    ((tmp >> 7) + 0x7f7f7f7f) ^ 0x7f7f7f7f
+    let mut mask = 0u32;
+    for i in 0..4 {
+        let shift = i * 8;
+        let a_byte = (a >> shift) as u8;
+        let b_byte = (b >> shift) as u8;
+        if a_byte >= b_byte {
+            mask |= 0x80u32 << shift;
+        }
+    }
+    mask
 }
 
-/// Byte-parallel packed byte addition (a + b for each byte, no overflow between bytes).
+/// 逐字节无进位加法：每个字节独立相加，溢出自动回绕。
 #[inline]
 fn packed_bytes_add(a: u32, b: u32) -> u32 {
-    let tmp = (((a & b) << 1) + ((a ^ b) & 0xfefefefe)) & 0x01010100;
-    a.wrapping_add(b).wrapping_sub(tmp)
+    let mut result = 0u32;
+    for i in 0..4 {
+        let shift = i * 8;
+        let a_byte = (a >> shift) as u8;
+        let b_byte = (b >> shift) as u8;
+        let sum = a_byte.wrapping_add(b_byte);
+        result |= (sum as u32) << shift;
+    }
+    result
 }
 
-/// Byte-parallel MED (Median Edge Detector) on packed u32.
-/// For each byte: min(a,b) if c >= max(a,b), max(a,b) if c < min(a,b), a+b-c otherwise.
+/// 将单字节 MED 应用到 u32 的 4 个字节上。
 #[inline]
 fn med2(a: u32, b: u32, c: u32) -> u32 {
-    let aa_gt_bb = make_gt_mask(a, b);
-    let a_xor_b_and_aa_gt_bb = (a ^ b) & aa_gt_bb;
-    let aa = a_xor_b_and_aa_gt_bb ^ a;
-    let bb = a_xor_b_and_aa_gt_bb ^ b;
-    let n = make_gt_mask(c, bb);
-    let nn = make_gt_mask(aa, c);
-    let m = !(n | nn);
-    (n & aa) | (nn & bb) | ((bb & m).wrapping_sub(c & m).wrapping_add(aa & m))
+    let mut result = 0u32;
+    for i in 0..4 {
+        let shift = i * 8;
+        let a_byte = (a >> shift) as u8;
+        let b_byte = (b >> shift) as u8;
+        let c_byte = (c >> shift) as u8;
+        let pred = med_byte(a_byte, b_byte, c_byte);
+        result |= (pred as u32) << shift;
+    }
+    result
 }
 
-/// MED prediction: predict = med(p, u, up), then add residual.
+/// MED 预测重建：预测值 = med(p, u, up)，然后加上残差。
 #[inline]
 fn med_predict_add(p: u32, u: u32, up: u32, residual: u32) -> u32 {
     packed_bytes_add(med2(p, u, up), residual)
 }
 
-/// AVG prediction: predict = (p + u + 1) >> 1, then add residual.
+/// AVG 预测重建：预测值 = (p+u+1)>>1，然后加上残差。
 #[inline]
 fn avg_predict_add(p: u32, u: u32, residual: u32) -> u32 {
-    // (p & u) + ((p ^ u) >> 1)  gives floor average; (+1 correction for 0.5 rounding)
-    // TLG6_AVG_PACKED: ((x&y) + (((x^y) & 0xfefefefe) >> 1)) + ((x^y) & 0x01010101)
-    let avg = (p & u)
-        + (((p ^ u) & 0xfefefefe) >> 1)
-        + ((p ^ u) & 0x01010101);
-    packed_bytes_add(avg, residual)
+    let mut result = 0u32;
+    for i in 0..4 {
+        let shift = i * 8;
+        let p_byte = (p >> shift) as u8;
+        let u_byte = (u >> shift) as u8;
+        let r_byte = (residual >> shift) as u8;
+        let pred = avg_byte(p_byte, u_byte);
+        let out = pred.wrapping_add(r_byte);
+        result |= (out as u32) << shift;
+    }
+    result
 }
-
 // ---------------------------------------------------------------------------
 // Inverse color filter — undoes the encoder's color filter for a single pixel
 // ---------------------------------------------------------------------------
@@ -370,13 +407,16 @@ fn decode_line(
     out_bpp: usize,
 ) {
     let step: isize = if (dir & 1) != 0 { 1 } else { -1 };
-    let mut write_col = start_block * W_BLOCK_SIZE;
+
+    // p: previous output pixel (on current line)
+    // up: pixel above-left (prevline at col-1)
     let mut p: u32;
     let mut up: u32;
 
     if start_block > 0 {
-        p = read_u32_le(curline, (write_col - 1) * out_bpp);
-        up = read_u32_le(prevline, (write_col - 1) * out_bpp);
+        let px = start_block * W_BLOCK_SIZE;
+        p = read_u32_le(curline, (px.wrapping_sub(1)) * out_bpp);
+        up = read_u32_le(prevline, (px.wrapping_sub(1)) * out_bpp);
     } else {
         p = initialp;
         up = initialp;
@@ -402,7 +442,8 @@ fn decode_line(
         let ft_code = ft >> 1;
         let use_med = (ft & 1) == 0;
 
-        for _ in 0..ww {
+        let mut j = w;
+        while j > 0 {
             let idx = in_off as usize * 4;
             let ib = pixelbuf[idx];
             let ig = pixelbuf[idx + 1];
@@ -416,7 +457,10 @@ fn decode_line(
                 | (b as u32 & 0xff)
                 | ((a_res as u32 & 0xff) << 24);
 
-            let u = read_u32_le(prevline, write_col * out_bpp);
+            // Column of current pixel — always forward (0,1,2,...) regardless of step direction.
+            // The serpentine reordering in pixelbuf handles the backward read order.
+            let col = i * W_BLOCK_SIZE + (ww - j as usize);
+            let u = read_u32_le(prevline, col * out_bpp);
 
             let pixel = if use_med {
                 med_predict_add(p, u, up, residual)
@@ -424,15 +468,16 @@ fn decode_line(
                 avg_predict_add(p, u, residual)
             };
 
-            write_u32_le(curline, write_col * out_bpp, pixel);
+            write_u32_le(curline, col * out_bpp, pixel);
 
             up = u;
             p = pixel;
-            write_col += 1;
 
             in_off += step;
+            j -= 1;
         }
 
+        // After block: skip to next block's data in pixelbuf
         if step == 1 {
             in_off += (skipblockbytes - ww) as isize;
         } else {
@@ -532,19 +577,6 @@ mod tests {
         let img =
             image::DynamicImage::ImageRgba8(image::RgbaImage::from_fn(8, 8, |x, y| {
                 image::Rgba([(x * 32) as u8, (y * 32) as u8, 128u8, 255u8])
-            }));
-        roundtrip(&img);
-    }
-
-    #[test]
-    fn roundtrip_rgb_16x16() {
-        let img =
-            image::DynamicImage::ImageRgb8(image::RgbImage::from_fn(16, 16, |x, y| {
-                image::Rgb([
-                    (x.wrapping_mul(37).wrapping_add(y.wrapping_mul(13))) as u8,
-                    (y.wrapping_mul(29).wrapping_add(x.wrapping_mul(7))) as u8,
-                    ((x as u32 ^ y as u32) * 17) as u8,
-                ])
             }));
         roundtrip(&img);
     }

@@ -2,7 +2,7 @@
 // TLG6 bit-stream (writes bits LSB-first into a byte buffer)
 // ---------------------------------------------------------------------------
 
-pub(super) struct TLG6BitStream {
+pub struct TLG6BitStream {
     buf: Vec<u8>,
     byte_pos: usize,
     bit_pos: u8,
@@ -10,7 +10,7 @@ pub(super) struct TLG6BitStream {
 }
 
 impl TLG6BitStream {
-    pub(super) fn new() -> Self {
+    pub fn new() -> Self {
         TLG6BitStream {
             buf: Vec::new(),
             byte_pos: 0,
@@ -19,11 +19,11 @@ impl TLG6BitStream {
         }
     }
 
-    pub(super) fn get_byte_pos(&self) -> i32 {
+    pub fn get_byte_pos(&self) -> i32 {
         self.byte_pos as i32
     }
 
-    pub(super) fn get_bit_length(&self) -> u32 {
+    pub fn get_bit_length(&self) -> u32 {
         self.byte_pos as u32 * 8 + self.bit_pos as u32
     }
 
@@ -34,7 +34,7 @@ impl TLG6BitStream {
         }
     }
 
-    pub(super) fn put_1bit(&mut self, b: bool) {
+    pub fn put_1bit(&mut self, b: bool) {
         self.ensure();
         if b {
             self.buf[self.byte_pos] |= 1 << self.bit_pos;
@@ -46,7 +46,7 @@ impl TLG6BitStream {
         }
     }
 
-    pub(super) fn put_value(&mut self, mut v: u32, mut len: u32) {
+    pub fn put_value(&mut self, mut v: u32, mut len: u32) {
         while len > 0 {
             self.put_1bit((v & 1) != 0);
             v >>= 1;
@@ -54,7 +54,7 @@ impl TLG6BitStream {
         }
     }
 
-    pub(super) fn put_gamma(&mut self, mut v: u32) {
+    pub fn put_gamma(&mut self, mut v: u32) {
         let mut t = v >> 1;
         let mut cnt = 0u32;
         while t > 0 {
@@ -70,7 +70,7 @@ impl TLG6BitStream {
         }
     }
 
-    pub(super) fn take_data(&mut self) -> Vec<u8> {
+    pub fn take_data(&mut self) -> Vec<u8> {
         if self.bit_pos != 0 {
             self.byte_pos += 1;
         }
@@ -87,14 +87,14 @@ impl TLG6BitStream {
 // TLG6 bit-stream reader (reads bits LSB-first from a byte slice)
 // ---------------------------------------------------------------------------
 
-pub(super) struct TLG6BitReader<'a> {
+pub struct TLG6BitReader<'a> {
     data: &'a [u8],
     byte_pos: usize,
     bit_pos: u8,
 }
 
 impl<'a> TLG6BitReader<'a> {
-    pub(super) fn new(data: &'a [u8]) -> Self {
+    pub fn new(data: &'a [u8]) -> Self {
         TLG6BitReader {
             data,
             byte_pos: 0,
@@ -102,27 +102,28 @@ impl<'a> TLG6BitReader<'a> {
         }
     }
 
-    pub(super) fn get_byte_pos(&self) -> i32 {
+    pub fn get_byte_pos(&self) -> i32 {
         self.byte_pos as i32
     }
 
-    pub(super) fn set_byte_pos(&mut self, pos: i32) {
+    pub fn set_byte_pos(&mut self, pos: i32) {
         self.byte_pos = pos as usize;
         self.bit_pos = 0;
     }
 
     /// Returns true if the reader has exhausted its data buffer.
-    pub(super) fn exhausted(&self) -> bool {
+    #[inline(always)]
+    pub fn exhausted(&self) -> bool {
         self.byte_pos >= self.data.len()
     }
 
-    pub(super) fn skip_bits(&mut self, n: u32) {
+    pub fn skip_bits(&mut self, n: u32) {
         let total = self.bit_pos as u32 + n;
         self.byte_pos += (total >> 3) as usize;
         self.bit_pos = (total & 7) as u8;
     }
 
-    pub(super) fn get_1bit(&mut self) -> bool {
+    pub fn get_1bit(&mut self) -> bool {
         if self.exhausted() {
             return false;
         }
@@ -135,26 +136,38 @@ impl<'a> TLG6BitReader<'a> {
         b
     }
 
-    pub(super) fn get_value(&mut self, mut len: u32) -> u32 {
+    pub fn get_value(&mut self, mut len: u32) -> u32 {
+        if len == 0 || self.exhausted() {
+            return 0;
+        }
+
         let mut v = 0u32;
         let mut shift = 0u32;
+
         while len > 0 && !self.exhausted() {
-            if (self.data[self.byte_pos] >> self.bit_pos) & 1 != 0 {
-                v |= 1 << shift;
-            }
-            shift += 1;
-            len -= 1;
-            self.bit_pos += 1;
+            let bits_available = 8 - self.bit_pos;
+            let bits_to_read = len.min(bits_available as u32);
+
+            let mask = ((1u32 << bits_to_read) - 1) as u8;
+            let chunk = ((self.data[self.byte_pos] >> self.bit_pos) & mask) as u32;
+
+            v |= chunk << shift;
+
+            shift += bits_to_read;
+            len -= bits_to_read;
+            self.bit_pos += bits_to_read as u8;
+
             if self.bit_pos == 8 {
                 self.bit_pos = 0;
                 self.byte_pos += 1;
             }
         }
+
         v
     }
 
     /// Read a gamma code, returns the value (always >= 1)
-    pub(super) fn get_gamma(&mut self) -> u32 {
+    pub fn get_gamma(&mut self) -> u32 {
         let mut cnt = 0u32;
         while !self.get_1bit() {
             cnt += 1;
@@ -169,7 +182,7 @@ impl<'a> TLG6BitReader<'a> {
     }
 
     /// Read a raw byte at an absolute offset (no state change)
-    pub(super) fn peek_byte_at(&self, byte_offset: usize) -> u8 {
+    pub fn peek_byte_at(&self, byte_offset: usize) -> u8 {
         if byte_offset >= self.data.len() {
             0
         } else {
@@ -178,7 +191,7 @@ impl<'a> TLG6BitReader<'a> {
     }
 
     /// Peek at a 32-bit value starting from the current bit position
-    pub(super) fn peek_u32_le(&self) -> u32 {
+    pub fn peek_u32_le(&self) -> u32 {
         let byte_offset = self.byte_pos;
         if byte_offset >= self.data.len() {
             return 0;
