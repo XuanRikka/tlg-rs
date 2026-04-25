@@ -265,90 +265,51 @@ impl Tlg6Decoder {
 // Per-byte MED / AVG prediction on packed u32 (operates on 4 bytes in parallel)
 // ---------------------------------------------------------------------------
 
-/// 单字节 MED 预测：取 a,b 的中值，若 c 在极值之外则返回极值，否则返回 a+b-c。
-#[inline]
-fn med_byte(a: u8, b: u8, c: u8) -> u8 {
-    let max = a.max(b);
-    let min = a.min(b);
-    if c >= max {
-        min
-    } else if c < min {
-        max
-    } else {
-        a.wrapping_add(b).wrapping_sub(c)
-    }
-}
-
-/// 单字节向上取整平均：(a+b+1)>>1
-#[inline]
-fn avg_byte(a: u8, b: u8) -> u8 {
-    ((a as u16 + b as u16 + 1) >> 1) as u8
-}
-
-/// 逐字节比较：当 a 字节 >= b 字节时该字节返回 0x80，否则 0x00。
+/// Byte-parallel "greater than" mask.
+/// Returns 0x80 in each byte where a >= b, 0x00 otherwise.
 #[inline]
 fn make_gt_mask(a: u32, b: u32) -> u32 {
-    let mut mask = 0u32;
-    for i in 0..4 {
-        let shift = i * 8;
-        let a_byte = (a >> shift) as u8;
-        let b_byte = (b >> shift) as u8;
-        if a_byte >= b_byte {
-            mask |= 0x80u32 << shift;
-        }
-    }
-    mask
+    let tmp2 = !b;
+    let tmp = ((a & tmp2).wrapping_add(((a ^ tmp2) >> 1) & 0x7f7f7f7f)) & 0x80808080;
+    ((tmp >> 7) + 0x7f7f7f7f) ^ 0x7f7f7f7f
 }
 
-/// 逐字节无进位加法：每个字节独立相加，溢出自动回绕。
+/// Byte-parallel packed byte addition (a + b for each byte, no overflow between bytes).
 #[inline]
 fn packed_bytes_add(a: u32, b: u32) -> u32 {
-    let mut result = 0u32;
-    for i in 0..4 {
-        let shift = i * 8;
-        let a_byte = (a >> shift) as u8;
-        let b_byte = (b >> shift) as u8;
-        let sum = a_byte.wrapping_add(b_byte);
-        result |= (sum as u32) << shift;
-    }
-    result
+    let tmp = (((a & b) << 1) + ((a ^ b) & 0xfefefefe)) & 0x01010100;
+    a.wrapping_add(b) - tmp
 }
 
-/// 将单字节 MED 应用到 u32 的 4 个字节上。
+/// Byte-parallel MED (Median Edge Detector) on packed u32.
+/// For each byte: min(a,b) if c >= max(a,b), max(a,b) if c < min(a,b), a+b-c otherwise.
 #[inline]
 fn med2(a: u32, b: u32, c: u32) -> u32 {
-    let mut result = 0u32;
-    for i in 0..4 {
-        let shift = i * 8;
-        let a_byte = (a >> shift) as u8;
-        let b_byte = (b >> shift) as u8;
-        let c_byte = (c >> shift) as u8;
-        let pred = med_byte(a_byte, b_byte, c_byte);
-        result |= (pred as u32) << shift;
-    }
-    result
+    let aa_gt_bb = make_gt_mask(a, b);
+    let a_xor_b_and_aa_gt_bb = (a ^ b) & aa_gt_bb;
+    let aa = a_xor_b_and_aa_gt_bb ^ a;
+    let bb = a_xor_b_and_aa_gt_bb ^ b;
+    let n = make_gt_mask(c, bb);
+    let nn = make_gt_mask(aa, c);
+    let m = !(n | nn);
+    (n & aa) | (nn & bb) | ((bb & m).wrapping_sub(c & m).wrapping_add(aa & m))
 }
 
-/// MED 预测重建：预测值 = med(p, u, up)，然后加上残差。
+/// MED prediction: predict = med(p, u, up), then add residual.
 #[inline]
 fn med_predict_add(p: u32, u: u32, up: u32, residual: u32) -> u32 {
     packed_bytes_add(med2(p, u, up), residual)
 }
 
-/// AVG 预测重建：预测值 = (p+u+1)>>1，然后加上残差。
+/// AVG prediction: predict = (p + u + 1) >> 1, then add residual.
 #[inline]
 fn avg_predict_add(p: u32, u: u32, residual: u32) -> u32 {
-    let mut result = 0u32;
-    for i in 0..4 {
-        let shift = i * 8;
-        let p_byte = (p >> shift) as u8;
-        let u_byte = (u >> shift) as u8;
-        let r_byte = (residual >> shift) as u8;
-        let pred = avg_byte(p_byte, u_byte);
-        let out = pred.wrapping_add(r_byte);
-        result |= (out as u32) << shift;
-    }
-    result
+    // (p & u) + ((p ^ u) >> 1)  gives floor average; (+1 correction for 0.5 rounding)
+    // TLG6_AVG_PACKED: ((x&y) + (((x^y) & 0xfefefefe) >> 1)) + ((x^y) & 0x01010101)
+    let avg = (p & u)
+        + (((p ^ u) & 0xfefefefe) >> 1)
+        + ((p ^ u) & 0x01010101);
+    packed_bytes_add(avg, residual)
 }
 // ---------------------------------------------------------------------------
 // Inverse color filter — undoes the encoder's color filter for a single pixel

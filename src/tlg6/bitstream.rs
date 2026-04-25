@@ -85,18 +85,28 @@ impl TLG6BitStream {
 
 // ---------------------------------------------------------------------------
 // TLG6 bit-stream reader (reads bits LSB-first from a byte slice)
+// Pads input with 8 zero bytes so u32 reads never go out of bounds,
+// allowing unsafe unchecked access on the hot path.
 // ---------------------------------------------------------------------------
 
-pub struct TLG6BitReader<'a> {
-    data: &'a [u8],
+const PADDING: usize = 8;
+
+pub struct TLG6BitReader {
+    data: Vec<u8>,
+    original_len: usize,
     byte_pos: usize,
     bit_pos: u8,
 }
 
-impl<'a> TLG6BitReader<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl TLG6BitReader {
+    pub fn new(data: &[u8]) -> Self {
+        let original_len = data.len();
+        let mut padded = Vec::with_capacity(original_len + PADDING);
+        padded.extend_from_slice(data);
+        padded.resize(original_len + PADDING, 0);
         TLG6BitReader {
-            data,
+            data: padded,
+            original_len,
             byte_pos: 0,
             bit_pos: 0,
         }
@@ -111,23 +121,24 @@ impl<'a> TLG6BitReader<'a> {
         self.bit_pos = 0;
     }
 
-    /// Returns true if the reader has exhausted its data buffer.
     #[inline(always)]
     pub fn exhausted(&self) -> bool {
-        self.byte_pos >= self.data.len()
+        self.byte_pos >= self.original_len
     }
 
+    #[inline(always)]
     pub fn skip_bits(&mut self, n: u32) {
         let total = self.bit_pos as u32 + n;
         self.byte_pos += (total >> 3) as usize;
         self.bit_pos = (total & 7) as u8;
     }
 
+    #[inline(always)]
     pub fn get_1bit(&mut self) -> bool {
         if self.exhausted() {
             return false;
         }
-        let b = (self.data[self.byte_pos] >> self.bit_pos) & 1 != 0;
+        let b = unsafe { (*self.data.get_unchecked(self.byte_pos) >> self.bit_pos) & 1 != 0 };
         self.bit_pos += 1;
         if self.bit_pos == 8 {
             self.bit_pos = 0;
@@ -136,37 +147,18 @@ impl<'a> TLG6BitReader<'a> {
         b
     }
 
-    pub fn get_value(&mut self, mut len: u32) -> u32 {
+    #[inline(always)]
+    pub fn get_value(&mut self, len: u32) -> u32 {
         if len == 0 || self.exhausted() {
             return 0;
         }
-
-        let mut v = 0u32;
-        let mut shift = 0u32;
-
-        while len > 0 && !self.exhausted() {
-            let bits_available = 8 - self.bit_pos;
-            let bits_to_read = len.min(bits_available as u32);
-
-            let mask = ((1u32 << bits_to_read) - 1) as u8;
-            let chunk = ((self.data[self.byte_pos] >> self.bit_pos) & mask) as u32;
-
-            v |= chunk << shift;
-
-            shift += bits_to_read;
-            len -= bits_to_read;
-            self.bit_pos += bits_to_read as u8;
-
-            if self.bit_pos == 8 {
-                self.bit_pos = 0;
-                self.byte_pos += 1;
-            }
-        }
-
+        debug_assert!(len <= 32 - self.bit_pos as u32);
+        let raw = self.peek_u32_le();
+        let v = raw & ((1u32 << len) - 1);
+        self.skip_bits(len);
         v
     }
 
-    /// Read a gamma code, returns the value (always >= 1)
     pub fn get_gamma(&mut self) -> u32 {
         let mut cnt = 0u32;
         while !self.get_1bit() {
@@ -181,33 +173,21 @@ impl<'a> TLG6BitReader<'a> {
         self.get_value(cnt) + (1 << cnt)
     }
 
-    /// Read a raw byte at an absolute offset (no state change)
+    #[inline(always)]
     pub fn peek_byte_at(&self, byte_offset: usize) -> u8 {
-        if byte_offset >= self.data.len() {
-            0
-        } else {
-            self.data[byte_offset]
-        }
+        debug_assert!(byte_offset < self.data.len());
+        unsafe { *self.data.get_unchecked(byte_offset) }
     }
 
-    /// Peek at a 32-bit value starting from the current bit position
+    #[inline(always)]
     pub fn peek_u32_le(&self) -> u32 {
-        let byte_offset = self.byte_pos;
-        if byte_offset >= self.data.len() {
+        if self.byte_pos >= self.original_len {
             return 0;
         }
-        let remaining = self.data.len() - byte_offset;
-        if remaining >= 4 {
-            let b = &self.data[byte_offset..];
-            let raw = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
-            raw >> self.bit_pos
-        } else {
-            let mut raw = 0u32;
-            for i in 0..remaining.min(4) {
-                raw |= (self.data[byte_offset + i] as u32) << (i * 8);
-            }
-            raw >> self.bit_pos
-        }
+        let raw = unsafe {
+            (self.data.as_ptr().add(self.byte_pos) as *const u32).read_unaligned()
+        };
+        u32::from_le(raw) >> self.bit_pos
     }
 }
 
