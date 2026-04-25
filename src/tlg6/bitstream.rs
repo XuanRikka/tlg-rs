@@ -6,7 +6,6 @@ pub struct TLG6BitStream {
     buf: Vec<u8>,
     byte_pos: usize,
     bit_pos: u8,
-    byte_capacity: usize,
 }
 
 impl TLG6BitStream {
@@ -15,7 +14,6 @@ impl TLG6BitStream {
             buf: Vec::new(),
             byte_pos: 0,
             bit_pos: 0,
-            byte_capacity: 0,
         }
     }
 
@@ -27,17 +25,20 @@ impl TLG6BitStream {
         self.byte_pos as u32 * 8 + self.bit_pos as u32
     }
 
-    fn ensure(&mut self) {
-        if self.byte_pos >= self.byte_capacity {
-            self.byte_capacity = self.byte_pos + 0x1000;
-            self.buf.resize(self.byte_capacity, 0);
+    #[inline(always)]
+    fn ensure(&mut self, need: usize) {
+        if self.byte_pos + need >= self.buf.len() {
+            self.buf.resize(self.byte_pos + need + 0x1000, 0);
         }
     }
 
+    #[inline(always)]
     pub fn put_1bit(&mut self, b: bool) {
-        self.ensure();
+        self.ensure(1);
         if b {
-            self.buf[self.byte_pos] |= 1 << self.bit_pos;
+            unsafe {
+                *self.buf.get_unchecked_mut(self.byte_pos) |= 1 << self.bit_pos;
+            }
         }
         self.bit_pos += 1;
         if self.bit_pos == 8 {
@@ -46,27 +47,47 @@ impl TLG6BitStream {
         }
     }
 
-    pub fn put_value(&mut self, mut v: u32, mut len: u32) {
-        while len > 0 {
-            self.put_1bit((v & 1) != 0);
-            v >>= 1;
-            len -= 1;
+    #[inline(always)]
+    pub fn put_value(&mut self, v: u32, len: u32) {
+        if len == 0 {
+            return;
         }
+        self.ensure(5);
+        let mut remaining = len;
+        let mut val = v;
+        let mut bp = self.bit_pos as u32;
+        let mut pos = self.byte_pos;
+
+        while remaining > 0 {
+            let space = 8 - bp;
+            let n = remaining.min(space);
+            let mask = ((1u32 << n) - 1) as u8;
+            let bits = (val as u8 & mask) << bp;
+            unsafe {
+                *self.buf.get_unchecked_mut(pos) |= bits;
+            }
+            val >>= n;
+            remaining -= n;
+            bp += n;
+            if bp == 8 {
+                bp = 0;
+                pos += 1;
+            }
+        }
+
+        self.byte_pos = pos;
+        self.bit_pos = bp as u8;
     }
 
-    pub fn put_gamma(&mut self, mut v: u32) {
-        let mut t = v >> 1;
-        let mut cnt = 0u32;
-        while t > 0 {
+    pub fn put_gamma(&mut self, v: u32) {
+        let cnt = if v <= 1 { 0 } else { 31 - (v >> 1).leading_zeros() + 1 };
+        self.ensure((cnt * 2 + 1) as usize / 8 + 2);
+        for _ in 0..cnt {
             self.put_1bit(false);
-            t >>= 1;
-            cnt += 1;
         }
         self.put_1bit(true);
-        while cnt > 0 {
-            self.put_1bit((v & 1) != 0);
-            v >>= 1;
-            cnt -= 1;
+        if cnt > 0 {
+            self.put_value(v, cnt);
         }
     }
 
@@ -78,7 +99,6 @@ impl TLG6BitStream {
         let data = std::mem::take(&mut self.buf);
         self.byte_pos = 0;
         self.bit_pos = 0;
-        self.byte_capacity = 0;
         data
     }
 }
