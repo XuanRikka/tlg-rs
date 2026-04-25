@@ -104,6 +104,8 @@ impl Tlg6Decoder {
         let mut comp_pos = 0usize;
 
         // ---- main decode loop over rows of blocks ----
+        let mut prevline_start: Option<usize> = None;
+
         for y in (0..height).step_by(H_BLOCK_SIZE) {
             let ylim = (y + H_BLOCK_SIZE).min(height);
             let bheight = ylim - y;
@@ -137,7 +139,11 @@ impl Tlg6Decoder {
                     return Err("Unsupported entropy coding method".into());
                 }
 
-                let mut br = TLG6BitReader::new(bit_pool);
+                let mut padded_bit_pool = Vec::with_capacity(byte_length + 5);
+                padded_bit_pool.extend_from_slice(bit_pool);
+                padded_bit_pool.resize(byte_length + 5, 0);
+
+                let mut br = TLG6BitReader::new(&padded_bit_pool);
                 decode_golomb_channel(
                     &mut br,
                     &mut pixelbuf,
@@ -151,27 +157,22 @@ impl Tlg6Decoder {
             // Decode each line in this block row
             let ft_row = &filter_types[(y / H_BLOCK_SIZE) * x_block_count..];
             let skipblockbytes = bheight * W_BLOCK_SIZE;
-            let mut prevline_start: isize = -1;
 
             for yy in y..ylim {
                 let curline_start = yy * out_row_bytes;
                 let dir = (yy & 1) ^ 1; // 1=forward, 0=backward
 
-                let (prevline, curline) = if prevline_start < 0 {
-                    (&zero_line[..],
-                     &mut out[curline_start..curline_start + out_row_bytes])
-                } else {
-                    let pstart = prevline_start as usize;
+                let (prevline, curline) = if let Some(pstart) = prevline_start {
                     let cstart = curline_start;
                     if pstart < cstart {
                         let (a, b) = out.split_at_mut(cstart);
-                        (&a[pstart..pstart + out_row_bytes],
-                         &mut b[..out_row_bytes])
+                        (&a[pstart..pstart + out_row_bytes], &mut b[..out_row_bytes])
                     } else {
                         let (a, b) = out.split_at_mut(pstart);
-                        (&b[..out_row_bytes],
-                         &mut a[cstart..cstart + out_row_bytes])
+                        (&b[..out_row_bytes], &mut a[cstart..cstart + out_row_bytes])
                     }
+                } else {
+                    (&zero_line[..], &mut out[curline_start..curline_start + out_row_bytes])
                 };
 
                 // Decode main blocks
@@ -214,7 +215,7 @@ impl Tlg6Decoder {
                     );
                 }
 
-                prevline_start = curline_start as isize;
+                prevline_start = Some(curline_start);
             }
         }
 
