@@ -8,7 +8,7 @@ use crate::tlg5::Tlg5Encoder;
 use crate::tlg6::{Tlg6Encoder};
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait, TlgType};
 
-pub enum TlgEncoder {
+pub(crate) enum TlgEncoder {
     Tlg5(Tlg5Encoder),
     Tlg6(Tlg6Encoder),
 }
