@@ -4,14 +4,11 @@ use std::io::{Cursor, Read, Seek};
 use image::DynamicImage;
 
 use crate::slide::SlideDecoder;
-use crate::tlg_trait::TlgDecoderTrait;
+use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
+use crate::tlg_type::TlgDecoderTrait;
 
 use super::bitstream::TLG6BitReader;
 use super::golomb::decode_golomb_channel;
-
-const W_BLOCK_SIZE: usize = 8;
-const H_BLOCK_SIZE: usize = 8;
-const TLG6_MAGIC: &[u8; 11] = b"TLG6.0\x00raw\x1a";
 
 // ---------------------------------------------------------------------------
 // TLG6 Decoder
@@ -120,7 +117,7 @@ impl Tlg6Decoder {
                     return Err("Unexpected end of compressed data".into());
                 }
                 let bit_length = u32::from_le_bytes(
-                    compressed_data[comp_pos..comp_pos + 4].try_into().unwrap(),
+                    compressed_data[comp_pos..comp_pos + 4].try_into()?,
                 );
                 comp_pos += 4;
 
@@ -189,7 +186,7 @@ impl Tlg6Decoder {
                         skipblockbytes,
                         &pixelbuf[start * 4..],
                         if colors == 3 { 0xff000000u32 } else { 0 },
-                        ((ylim - yy - 1) as isize - (yy - y) as isize) as isize,
+                        (ylim - yy - 1) as isize - (yy - y) as isize,
                         dir,
                         out_bpp,
                     );
@@ -209,7 +206,7 @@ impl Tlg6Decoder {
                         skipblockbytes,
                         &pixelbuf[start * 4..],
                         if colors == 3 { 0xff000000u32 } else { 0 },
-                        ((ylim - yy - 1) as isize - (yy - y) as isize) as isize,
+                        (ylim - yy - 1) as isize - (yy - y) as isize,
                         dir,
                         out_bpp,
                     );
@@ -490,7 +487,7 @@ impl TlgDecoderTrait for Tlg6Decoder {
         Ok(Tlg6Decoder { data })
     }
 
-    fn decode(&self) -> Result<DynamicImage, Box<dyn Error>> {
+    fn decode(self) -> Result<DynamicImage, Box<dyn Error>> {
         self.decode_inner()
     }
 }
@@ -498,7 +495,7 @@ impl TlgDecoderTrait for Tlg6Decoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tlg_trait::TlgEncoderTrait;
+    use crate::tlg_type::TlgEncoderTrait;
     use crate::tlg6::Tlg6Encoder;
 
     fn roundtrip(img: &DynamicImage) {
@@ -517,7 +514,7 @@ mod tests {
 
     #[test]
     fn roundtrip_gray_8x8() {
-        let img = image::DynamicImage::ImageLuma8(image::GrayImage::from_fn(
+        let img = DynamicImage::ImageLuma8(image::GrayImage::from_fn(
             8,
             8,
             |x, y| image::Luma([(x + y * 8) as u8]),
@@ -528,7 +525,7 @@ mod tests {
     #[test]
     fn roundtrip_rgb_8x8() {
         let img =
-            image::DynamicImage::ImageRgb8(image::RgbImage::from_fn(8, 8, |x, y| {
+            DynamicImage::ImageRgb8(image::RgbImage::from_fn(8, 8, |x, y| {
                 image::Rgb([(x * 17) as u8, (y * 17) as u8, 128u8])
             }));
         roundtrip(&img);
@@ -537,7 +534,7 @@ mod tests {
     #[test]
     fn roundtrip_rgba_8x8() {
         let img =
-            image::DynamicImage::ImageRgba8(image::RgbaImage::from_fn(8, 8, |x, y| {
+            DynamicImage::ImageRgba8(image::RgbaImage::from_fn(8, 8, |x, y| {
                 image::Rgba([(x * 32) as u8, (y * 32) as u8, 128u8, 255u8])
             }));
         roundtrip(&img);

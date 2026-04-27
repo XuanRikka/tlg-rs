@@ -1,10 +1,11 @@
 use std::error::Error;
-use std::io::{Seek, Write};
+use std::io::{Cursor, Seek, SeekFrom, Write};
 use std::collections::HashMap;
+use byteorder::{LittleEndian, WriteBytesExt};
 use image::DynamicImage;
 use crate::tlg5::Tlg5Encoder;
-use crate::tlg6::Tlg6Encoder;
-use crate::tlg_trait::{PixelLayout, TlgEncoderTrait, TlgType};
+use crate::tlg6::{Tlg6Encoder, TLG6_MAGIC};
+use crate::tlg_type::{PixelLayout, TlgEncoderTrait, TlgType};
 
 pub enum TlgEncoder {
     Tlg5(Tlg5Encoder),
@@ -33,14 +34,14 @@ impl TlgEncoder {
         }
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub fn encode(self) -> Result<Vec<u8>, Box<dyn Error>> {
         match self {
             TlgEncoder::Tlg5(e) => e.encode(),
             TlgEncoder::Tlg6(e) => e.encode(),
         }
     }
 
-    pub fn encode_to<W: Write + Seek>(&self, inner: &mut W) -> Result<(), Box<dyn Error>> {
+    pub fn encode_to<W: Write + Seek>(self, inner: &mut W) -> Result<(), Box<dyn Error>> {
         match self {
             TlgEncoder::Tlg5(e) => e.encode_to(inner),
             TlgEncoder::Tlg6(e) => e.encode_to(inner),
@@ -127,14 +128,6 @@ impl TlgWrite {
         TlgWrite { encoder, tags }
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>> {
-        self.encoder.encode()
-    }
-
-    pub fn encode_to<W: Write + Seek>(&self, inner: &mut W) -> Result<(), Box<dyn Error>> {
-        self.encoder.encode_to(inner)
-    }
-
     pub fn width(&self) -> u32 {
         self.encoder.width()
     }
@@ -150,4 +143,43 @@ impl TlgWrite {
     pub fn tags(&self) -> &HashMap<String, String> {
         &self.tags
     }
+
+    pub fn write_to<W: Write + Seek>(self, writer: &mut W) -> Result<(), Box<dyn Error>>
+    {
+        if self.tags.is_empty() {
+            writer.write_all(TLG6_MAGIC)?;
+
+            let size_pos = writer.stream_position()?;
+            writer.write_u32::<LittleEndian>(0u32)?;
+            let size = writer.stream_position()? - size_pos;
+            writer.seek(SeekFrom::Start(size_pos))?;
+            writer.write_u32::<LittleEndian>(size as u32)?;
+            
+            
+            writer.write_all(b"tags".as_slice())?;
+            let tags_data = tags_to_data(self.tags());
+            writer.write_u32::<LittleEndian>(tags_data.len() as u32)?;
+            writer.write_all(tags_data.as_slice())?;
+        }
+        else {
+            self.write_to(writer)?;
+        }
+        Ok(())
+    }
+    
+    pub fn write(self) -> Result<Vec<u8>, Box<dyn Error>>
+    {
+        let mut data = Vec::new();
+        let mut cursor = Cursor::new(&mut data);
+        self.write_to(&mut cursor)?;
+        Ok(data)
+    }
+}
+
+fn tags_to_data(tags: &HashMap<String, String>) -> Vec<u8> {
+    let mut s = String::new();
+    for (k, v) in tags {
+        s.push_str(&format!("{}:{}={}:{},", k.len(), k, v.len(), v));
+    };
+    s.into_bytes()
 }

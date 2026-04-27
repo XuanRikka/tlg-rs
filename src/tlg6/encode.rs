@@ -1,17 +1,14 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, SeekFrom, Write};
 use image::DynamicImage;
-use crate::tlg_trait::{PixelLayout, TlgEncoderTrait};
+use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
+use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
 use crate::slide::SlideEncoder;
 
 use super::bitstream::TLG6BitStream;
 use super::golomb::compress_values_golomb;
 use super::filter::{apply_color_filter, detect_color_filter};
 use super::predict::{pixel_channel, med_predict};
-
-const W_BLOCK_SIZE: usize = 8;
-const H_BLOCK_SIZE: usize = 8;
-const TLG6_MAGIC: &[u8; 11] = b"TLG6.0\x00raw\x1a";
 
 // ---------------------------------------------------------------------------
 // TLG6 Encoder
@@ -29,7 +26,7 @@ impl TlgEncoderTrait for Tlg6Encoder {
     fn height(&self) -> u32 { self.height }
     fn pixel_layout(&self) -> PixelLayout { self.pixel }
 
-    fn encode_to<W: Write + Seek>(&self, inner: &mut W) -> Result<(), Box<dyn Error>> {
+    fn encode_to<W: Write + Seek>(self, inner: &mut W) -> Result<(), Box<dyn Error>> {
         let colors = match self.pixel {
             PixelLayout::Gray => 1usize,
             PixelLayout::Rgb => 3usize,
@@ -45,8 +42,8 @@ impl TlgEncoderTrait for Tlg6Encoder {
         inner.write_all(TLG6_MAGIC)?;
         inner.write_all(&[colors as u8])?;
         inner.write_all(&[0u8; 3])?; // data_flag, color_type, external_golomb_table
-        inner.write_all(&(self.width as u32).to_le_bytes())?;
-        inner.write_all(&(self.height as u32).to_le_bytes())?;
+        inner.write_all(&self.width.to_le_bytes())?;
+        inner.write_all(&self.height.to_le_bytes())?;
 
         // ---- write placeholder for max_bit_length ----
         let max_bit_pos = inner.stream_position()?;
@@ -251,7 +248,7 @@ impl TlgEncoderTrait for Tlg6Encoder {
         Ok(())
     }
 
-    fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn encode(self) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut cursor = Cursor::new(Vec::new());
         self.encode_to(&mut cursor)?;
         Ok(cursor.into_inner())
@@ -299,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_encode_small_rgb() {
-        let img = image::DynamicImage::ImageRgb8(
+        let img = DynamicImage::ImageRgb8(
             image::RgbImage::from_fn(16, 16, |x, y| {
                 image::Rgb([(x * 17) as u8, (y * 17) as u8, 128u8])
             })
@@ -314,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_encode_small_gray() {
-        let img = image::DynamicImage::ImageLuma8(
+        let img = DynamicImage::ImageLuma8(
             image::GrayImage::from_fn(8, 8, |x, y| {
                 image::Luma([(x + y) as u8])
             })
@@ -326,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_encode_small_rgba() {
-        let img = image::DynamicImage::ImageRgba8(
+        let img = DynamicImage::ImageRgba8(
             image::RgbaImage::from_fn(8, 8, |x, y| {
                 image::Rgba([(x * 32) as u8, (y * 32) as u8, 128u8, 255u8])
             })

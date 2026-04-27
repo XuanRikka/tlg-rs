@@ -8,7 +8,7 @@ use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
 
 use super::{BLOCK_HEIGHT, TLG5_MAGIC};
 use crate::slide::SlideDecoder;
-use crate::tlg_trait::{PixelLayout, TlgDecoderTrait};
+use crate::tlg_type::{PixelLayout, TlgDecoderTrait};
 
 pub struct Tlg5Decoder {
     data: Vec<u8>,
@@ -41,7 +41,7 @@ impl TlgDecoderTrait for Tlg5Decoder {
         Ok(Tlg5Decoder { data })
     }
 
-    fn decode(&self) -> Result<DynamicImage, Box<dyn Error>> {
+    fn decode(self) -> Result<DynamicImage, Box<dyn Error>> {
         let mut cur = Cursor::new(&self.data);
 
         let mut magic = [0u8; TLG5_MAGIC.len()];
@@ -193,7 +193,7 @@ mod tests {
 
     use super::Tlg5Decoder;
     use crate::tlg5::encode::Tlg5Encoder;
-    use crate::tlg_trait::{TlgDecoderTrait, TlgEncoderTrait};
+    use crate::tlg_type::{TlgDecoderTrait, TlgEncoderTrait};
 
     #[test]
     fn roundtrip_gray() {
@@ -244,7 +244,7 @@ mod tests {
                 data.push((x * 31 + y * 3) as u8);
                 data.push((x * 13 + y * 17) as u8);
                 data.push((x * 7 + y * 27) as u8);
-                data.push((255u16.saturating_sub((x * 9 + y * 5) as u16)) as u8);
+                data.push(255u16.saturating_sub((x * 9 + y * 5) as u16) as u8);
             }
         }
 

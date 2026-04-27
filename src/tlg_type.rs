@@ -23,8 +23,8 @@ pub trait TlgEncoderTrait {
     fn height(&self) -> u32;
     fn pixel_layout(&self) -> PixelLayout;
 
-    fn encode_to<W: Write + Seek>(&self, inner: &mut W) -> Result<(), Box<dyn Error>>;
-    fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>>;
+    fn encode_to<W: Write + Seek>(self, inner: &mut W) -> Result<(), Box<dyn Error>>;
+    fn encode(self) -> Result<Vec<u8>, Box<dyn Error>>;
 
     fn from_image(image: &DynamicImage) -> Result<Self, Box<dyn Error>>
     where
@@ -61,5 +61,5 @@ pub trait TlgDecoderTrait {
     where
         Self: Sized;
 
-    fn decode(&self) -> Result<DynamicImage, Box<dyn Error>>;
+    fn decode(self) -> Result<DynamicImage, Box<dyn Error>>;
 }

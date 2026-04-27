@@ -1,9 +1,9 @@
 use std::fs::File;
 use std::io::Write;
 use image::ImageReader;
-use tlg::tlg5::encode::Tlg5Encoder;
+use tlg::tlg5::Tlg5Encoder;
 use tlg::tlg6::Tlg6Encoder;
-use tlg::tlg_trait::TlgEncoderTrait;
+use tlg::tlg_type::TlgEncoderTrait;
 
 fn main()
 {

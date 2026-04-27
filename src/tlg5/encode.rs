@@ -2,7 +2,7 @@ use std::error::Error;
 use std::io::{Cursor, Seek, Write, SeekFrom};
 use image::DynamicImage;
 use crate::slide::SlideEncoder;
-use crate::tlg_trait::{PixelLayout, TlgEncoderTrait};
+use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
 use super::{TLG5_MAGIC,BLOCK_HEIGHT};
 
 
@@ -28,7 +28,7 @@ impl TlgEncoderTrait for Tlg5Encoder
         self.pixel
     }
 
-    fn encode_to<W: Write + Seek>(&self, inner: &mut W) -> Result<(), Box<dyn Error>> {
+    fn encode_to<W: Write + Seek>(self, inner: &mut W) -> Result<(), Box<dyn Error>> {
         let colors = match self.pixel {
             PixelLayout::Gray => 1u8,
             PixelLayout::Rgb => 3u8,
@@ -145,7 +145,7 @@ impl TlgEncoderTrait for Tlg5Encoder
     }
 
     // encode 方法通过 Cursor 调用 encode_to
-    fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn encode(self) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut cursor = Cursor::new(Vec::new());
         self.encode_to(&mut cursor)?;
         Ok(cursor.into_inner())
