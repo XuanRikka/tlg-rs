@@ -35,6 +35,7 @@ impl TlgEncoder {
         }
     }
 
+    #[allow(dead_code)]
     pub fn encode(self) -> Result<Vec<u8>, Box<dyn Error>> {
         match self {
             TlgEncoder::Tlg5(e) => e.encode(),

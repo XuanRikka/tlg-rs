@@ -179,6 +179,7 @@ impl TLG6BitReader {
         v
     }
 
+    #[allow(dead_code)]
     pub fn get_gamma(&mut self) -> u32 {
         let mut cnt = 0u32;
         while !self.get_1bit() {
