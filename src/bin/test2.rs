@@ -1,15 +1,14 @@
 use std::fs::File;
 use std::io::BufReader;
 
-use tlg::tlg5::Tlg5Decoder;
-use tlg::tlg6::Tlg6Decoder;
-use tlg::tlg_type::TlgDecoderTrait;
+use tlg::TlgReader;
 
 fn main() {
     let file = File::open("aaa.tlg").unwrap();
     let reader = BufReader::new(file);
-    let decoder = Tlg6Decoder::from_reader(reader).unwrap();
+    let decoder = TlgReader::from_reader(reader);
 
-    let image = decoder.decode().unwrap();
+    let (image, tags) = decoder.read().unwrap();
+    println!("{:?}", tags);
     image.save("out.png").unwrap();
 }

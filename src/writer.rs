@@ -3,8 +3,9 @@ use std::io::{Cursor, Seek, SeekFrom, Write};
 use std::collections::HashMap;
 use byteorder::{LittleEndian, WriteBytesExt};
 use image::DynamicImage;
+use crate::SDS_MAGIC;
 use crate::tlg5::Tlg5Encoder;
-use crate::tlg6::{Tlg6Encoder, TLG6_MAGIC};
+use crate::tlg6::{Tlg6Encoder};
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait, TlgType};
 
 pub enum TlgEncoder {
@@ -49,24 +50,24 @@ impl TlgEncoder {
     }
 }
 
-pub struct TlgWrite {
+pub struct TlgWriter {
     encoder: TlgEncoder,
     tags: HashMap<String, String>,
 }
 
-impl TlgWrite {
+impl TlgWriter {
     pub fn from_gray(
         data: Vec<u8>,
         tags: HashMap<String, String>,
         width: u32,
         height: u32,
         tlg_type: TlgType,
-    ) -> TlgWrite {
+    ) -> TlgWriter {
         let encoder = match tlg_type {
             TlgType::Tlg5 => TlgEncoder::Tlg5(Tlg5Encoder::from_gray(data, width, height)),
             TlgType::Tlg6 => TlgEncoder::Tlg6(Tlg6Encoder::from_gray(data, width, height)),
         };
-        TlgWrite::new(tags, encoder)
+        TlgWriter::new(tags, encoder)
     }
 
     pub fn from_rgb(
@@ -75,12 +76,12 @@ impl TlgWrite {
         width: u32,
         height: u32,
         tlg_type: TlgType,
-    ) -> TlgWrite {
+    ) -> TlgWriter {
         let encoder = match tlg_type {
             TlgType::Tlg5 => TlgEncoder::Tlg5(Tlg5Encoder::from_rgb(data, width, height)),
             TlgType::Tlg6 => TlgEncoder::Tlg6(Tlg6Encoder::from_rgb(data, width, height)),
         };
-        TlgWrite::new(tags, encoder)
+        TlgWriter::new(tags, encoder)
     }
 
     pub fn from_rgba(
@@ -89,12 +90,12 @@ impl TlgWrite {
         width: u32,
         height: u32,
         tlg_type: TlgType,
-    ) -> TlgWrite {
+    ) -> TlgWriter {
         let encoder = match tlg_type {
             TlgType::Tlg5 => TlgEncoder::Tlg5(Tlg5Encoder::from_rgba(data, width, height)),
             TlgType::Tlg6 => TlgEncoder::Tlg6(Tlg6Encoder::from_rgba(data, width, height)),
         };
-        TlgWrite::new(tags, encoder)
+        TlgWriter::new(tags, encoder)
     }
 
     pub fn from_raw(
@@ -104,28 +105,28 @@ impl TlgWrite {
         height: u32,
         pixel_layout: PixelLayout,
         tlg_type: TlgType,
-    ) -> TlgWrite {
+    ) -> TlgWriter {
         let encoder = match tlg_type {
             TlgType::Tlg5 => TlgEncoder::Tlg5(Tlg5Encoder::from_raw(data, pixel_layout, width, height)),
             TlgType::Tlg6 => TlgEncoder::Tlg6(Tlg6Encoder::from_raw(data, pixel_layout, width, height)),
         };
-        TlgWrite::new(tags, encoder)
+        TlgWriter::new(tags, encoder)
     }
 
     pub fn from_image(
         image: &DynamicImage,
         tags: HashMap<String, String>,
         tlg_type: TlgType,
-    ) -> Result<TlgWrite, Box<dyn Error>> {
+    ) -> Result<TlgWriter, Box<dyn Error>> {
         let encoder = match tlg_type {
             TlgType::Tlg5 => TlgEncoder::Tlg5(Tlg5Encoder::from_image(image)?),
             TlgType::Tlg6 => TlgEncoder::Tlg6(Tlg6Encoder::from_image(image)?),
         };
-        Ok(TlgWrite::new(tags, encoder))
+        Ok(TlgWriter::new(tags, encoder))
     }
 
-    fn new(tags: HashMap<String, String>, encoder: TlgEncoder) -> TlgWrite {
-        TlgWrite { encoder, tags }
+    fn new(tags: HashMap<String, String>, encoder: TlgEncoder) -> TlgWriter {
+        TlgWriter { encoder, tags }
     }
 
     pub fn width(&self) -> u32 {
@@ -146,27 +147,31 @@ impl TlgWrite {
 
     pub fn write_to<W: Write + Seek>(self, writer: &mut W) -> Result<(), Box<dyn Error>>
     {
-        if self.tags.is_empty() {
-            writer.write_all(TLG6_MAGIC)?;
+        if !self.tags.is_empty() {
+            writer.write_all(SDS_MAGIC)?;
+
+            let tags = self.tags;
 
             let size_pos = writer.stream_position()?;
             writer.write_u32::<LittleEndian>(0u32)?;
-            let size = writer.stream_position()? - size_pos;
+            self.encoder.encode_to(writer)?;
+            let stream_end = writer.stream_position()?;
+            let size = stream_end - size_pos - 4;
             writer.seek(SeekFrom::Start(size_pos))?;
             writer.write_u32::<LittleEndian>(size as u32)?;
-            
-            
+            writer.seek(SeekFrom::Start(stream_end))?;
+
             writer.write_all(b"tags".as_slice())?;
-            let tags_data = tags_to_data(self.tags());
+            let tags_data = tags_to_data(&tags);
             writer.write_u32::<LittleEndian>(tags_data.len() as u32)?;
             writer.write_all(tags_data.as_slice())?;
         }
         else {
-            self.write_to(writer)?;
+            self.encoder.encode_to(writer)?;
         }
         Ok(())
     }
-    
+
     pub fn write(self) -> Result<Vec<u8>, Box<dyn Error>>
     {
         let mut data = Vec::new();
