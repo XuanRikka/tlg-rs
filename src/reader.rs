@@ -100,10 +100,10 @@ impl TlgReader<BufReader<File>> {
         TlgReader::new(BufReader::new(file))
     }
 
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Self
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>>
     {
-        let file = File::open(path).unwrap();
-        TlgReader::new(BufReader::new(file))
+        let file = File::open(path)?;
+        Ok(TlgReader::new(BufReader::new(file)))
     }
 }
 

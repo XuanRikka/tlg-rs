@@ -10,6 +10,7 @@ pub enum PixelLayout {
     Rgba,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TlgType
 {
     Tlg5,

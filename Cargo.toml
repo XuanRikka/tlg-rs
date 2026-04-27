@@ -3,6 +3,11 @@ name = "tlg"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+authors = ["XuanRikka <xuanrikka@qq.com>"]
+repository = "https://github.com/XuanRikka/tlg-rs"
+description = "A pure Rust crate for the KrKr2 tlg image format"
+keywords = ["image", "tlg", "krkr"]
+categories = "image"
 
 [lib]
 name = "tlg"
