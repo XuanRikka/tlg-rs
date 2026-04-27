@@ -1,11 +1,11 @@
-pub mod encode;
-pub mod decode;
+mod encode;
+mod decode;
 
 pub use encode::SlideEncoder;
 pub use decode::SlideDecoder;
 
-pub const SLIDE_N: usize = 4096;
-pub const SLIDE_M: usize = 18 + 255;
+pub(crate) const SLIDE_N: usize = 4096;
+pub(crate) const SLIDE_M: usize = 18 + 255;
 
 #[cfg(test)]
 mod test {

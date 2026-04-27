@@ -1,9 +1,12 @@
-pub mod bitstream;
 mod golomb;
 mod filter;
 mod predict;
 mod encode;
 mod decode;
+#[cfg(any(test, feature = "__bench"))]
+pub mod bitstream;
+#[cfg(not(any(test, feature = "__bench")))]
+pub(crate) mod bitstream;
 
 pub(crate) const W_BLOCK_SIZE: usize = 8;
 pub(crate) const H_BLOCK_SIZE: usize = 8;

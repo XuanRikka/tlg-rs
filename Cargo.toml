@@ -27,15 +27,20 @@ image = { version = "0.25.10", default-features = false, features = ["png"] }
 criterion = "0.8.2"
 rand = "0.10.0"
 
+[features]
+__bench = []
+
 [[bench]]
 name = "slide-encode"
 harness = false
 path = "benches/slide_encode.rs"
+required-features = ["__bench"]
 
 [[bench]]
 name = "slide-decode"
 harness = false
 path = "benches/slide_decode.rs"
+required-features = ["__bench"]
 
 #[[bench]]
 #name = "tlg5-encode"
@@ -61,8 +66,10 @@ path = "benches/slide_decode.rs"
 name = "tlg6-bit-stream"
 harness = false
 path = "benches/tlg6_bit_stream.rs"
+required-features = ["__bench"]
 
 [[bench]]
 name = "tlg6-bit-reader"
 harness = false
 path = "benches/tlg6_bit_reader.rs"
+required-features = ["__bench"]
