@@ -10,6 +10,12 @@ pub enum PixelLayout {
     Rgba,
 }
 
+pub enum TlgType
+{
+    Tlg5,
+    Tlg6
+}
+
 
 /// TLG 编码器 trait
 pub trait TlgEncoderTrait {
