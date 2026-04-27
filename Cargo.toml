@@ -32,25 +32,25 @@ name = "slide-decode"
 harness = false
 path = "bench/slide_decode.rs"
 
-[[bench]]
-name = "tlg5-encode"
-harness = false
-path = "bench/tlg5_encode.rs"
-
-[[bench]]
-name = "tlg5-decode"
-harness = false
-path = "bench/tlg5_decode.rs"
-
-[[bench]]
-name = "tlg6-encode"
-harness = false
-path = "bench/tlg6_encode.rs"
-
-[[bench]]
-name = "tlg6-decode"
-harness = false
-path = "bench/tlg6_decode.rs"
+#[[bench]]
+#name = "tlg5-encode"
+#harness = false
+#path = "bench/tlg5_encode.rs"
+#
+#[[bench]]
+#name = "tlg5-decode"
+#harness = false
+#path = "bench/tlg5_decode.rs"
+#
+#[[bench]]
+#name = "tlg6-encode"
+#harness = false
+#path = "bench/tlg6_encode.rs"
+#
+#[[bench]]
+#name = "tlg6-decode"
+#harness = false
+#path = "bench/tlg6_decode.rs"
 
 [[bench]]
 name = "tlg6-bit-stream"
