@@ -5,7 +5,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use image::DynamicImage;
 use crate::SDS_MAGIC;
 use crate::tlg5::Tlg5Encoder;
-use crate::tlg6::{Tlg6Encoder};
+use crate::tlg6::Tlg6Encoder;
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait, TlgType};
 
 pub(crate) enum TlgEncoder {
