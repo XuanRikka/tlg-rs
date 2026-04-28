@@ -28,6 +28,7 @@ criterion = "0.8.2"
 rand = "0.10.0"
 
 [features]
+default = ["image"]
 __bench = []
 image = ["dep:image"]
 
