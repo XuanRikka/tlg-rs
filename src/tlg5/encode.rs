@@ -1,10 +1,11 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, Write, SeekFrom};
-use image::DynamicImage;
 use crate::slide::SlideEncoder;
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
 use super::{TLG5_MAGIC,BLOCK_HEIGHT};
 
+#[cfg(any(test, feature = "image"))]
+use image::DynamicImage;
 
 pub struct Tlg5Encoder
 {
@@ -143,14 +144,14 @@ impl TlgEncoderTrait for Tlg5Encoder
 
         Ok(())
     }
-
-    // encode 方法通过 Cursor 调用 encode_to
+    
     fn encode(self) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut cursor = Cursor::new(Vec::new());
         self.encode_to(&mut cursor)?;
         Ok(cursor.into_inner())
     }
 
+    #[cfg(any(test, feature = "image"))]
     fn from_image(image: &DynamicImage) -> Result<Tlg5Encoder, Box<dyn Error>>
     {
         match image {

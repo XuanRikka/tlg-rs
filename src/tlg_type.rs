@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::io::{Read, Seek, Write};
 use std::path::Path;
+
+#[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -17,6 +19,13 @@ pub enum TlgType
     Tlg6
 }
 
+pub struct  ImageInfo
+{
+    pub width: u32,
+    pub height: u32,
+    pub pixel_layout: PixelLayout,
+}
+
 
 /// TLG 编码器 trait
 pub trait TlgEncoderTrait {
@@ -27,6 +36,7 @@ pub trait TlgEncoderTrait {
     fn encode_to<W: Write + Seek>(self, inner: &mut W) -> Result<(), Box<dyn Error>>;
     fn encode(self) -> Result<Vec<u8>, Box<dyn Error>>;
 
+    #[cfg(any(test, feature = "image"))]
     fn from_image(image: &DynamicImage) -> Result<Self, Box<dyn Error>>
     where
         Self: Sized;
@@ -62,5 +72,8 @@ pub trait TlgDecoderTrait {
     where
         Self: Sized;
 
-    fn decode(self) -> Result<DynamicImage, Box<dyn Error>>;
+    fn decode(self) -> Result<(Vec<u8>, ImageInfo), Box<dyn Error>>;
+
+    #[cfg(any(test, feature = "image"))]
+    fn decode_to_image(self) -> Result<DynamicImage, Box<dyn Error>>;
 }

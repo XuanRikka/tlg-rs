@@ -2,7 +2,10 @@ use std::error::Error;
 use std::io::{Cursor, Seek, SeekFrom, Write};
 use std::collections::HashMap;
 use byteorder::{LittleEndian, WriteBytesExt};
+
+#[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
+
 use crate::SDS_MAGIC;
 use crate::tlg5::Tlg5Encoder;
 use crate::tlg6::Tlg6Encoder;
@@ -114,6 +117,7 @@ impl TlgWriter {
         TlgWriter::new(tags, encoder)
     }
 
+    #[cfg(any(test, feature = "image"))]
     pub fn from_image(
         image: &DynamicImage,
         tags: HashMap<String, String>,

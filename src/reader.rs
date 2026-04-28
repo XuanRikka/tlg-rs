@@ -4,11 +4,14 @@ use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use byteorder::{LittleEndian, ReadBytesExt};
+
+#[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
+
 use crate::SDS_MAGIC;
 use crate::tlg5::{Tlg5Decoder, TLG5_MAGIC};
 use crate::tlg6::{Tlg6Decoder, TLG6_MAGIC};
-use crate::tlg_type::{TlgDecoderTrait, TlgType};
+use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait, TlgType};
 use crate::tlg_type::TlgType::{Tlg5, Tlg6};
 
 
@@ -29,7 +32,7 @@ impl<R: Read + Seek> TlgReader<R>
         TlgReader::new(reader)
     }
 
-    pub fn read(mut self) -> Result<(DynamicImage, HashMap<String, String>), Box<dyn Error>>
+    pub fn read(mut self) -> Result<(Vec<u8>, ImageInfo, HashMap<String, String>), Box<dyn Error>>
     {
         let mut magic = [0u8; 11];
         self.reader.read_exact(&mut magic)?;
@@ -48,14 +51,17 @@ impl<R: Read + Seek> TlgReader<R>
             image_stream.read_exact(&mut raw_magic)?;
 
             image_stream.seek(SeekFrom::Start(start_pos))?;
-            tlg_type = if &raw_magic == TLG5_MAGIC {Tlg5} else {Tlg6}
+            tlg_type = if &magic == TLG5_MAGIC {Tlg5}
+                else if &magic == TLG6_MAGIC {Tlg6}
+                else {return Err("Invalid magic".into())}
         }
         else {
             image_stream = self.reader.by_ref().take(u64::MAX);
-            tlg_type = if &magic == TLG5_MAGIC {Tlg5} else {Tlg6}
+            tlg_type = if &magic == TLG5_MAGIC {Tlg5}
+                else if &magic == TLG6_MAGIC {Tlg6}
+                else {return Err("Invalid magic".into())}
         }
 
-        println!("aaa");
 
         let result = match tlg_type
         {
@@ -88,8 +94,37 @@ impl<R: Read + Seek> TlgReader<R>
             tags = HashMap::new();
         }
 
+        let (data, info) = result;
 
-        Ok((result, tags))
+        Ok((data, info, tags))
+    }
+
+    #[cfg(any(test, feature = "image"))]
+    pub fn read_to_image(self) -> Result<(DynamicImage, HashMap<String, String>), Box<dyn Error>>
+    {
+        let (data, info, tags) = self.read()?;
+
+        match info.pixel_layout
+        {
+            PixelLayout::Gray => {
+                Ok((DynamicImage::ImageRgb8(
+                    image::RgbImage::from_raw(info.width, info.height, data)
+                        .ok_or("Failed to create gray image")?,
+                ), tags))
+            },
+            PixelLayout::Rgb => {
+                Ok((DynamicImage::ImageRgb8(
+                    image::RgbImage::from_raw(info.width, info.height, data)
+                        .ok_or("Failed to create rgb image")?,
+                ), tags))
+            },
+            PixelLayout::Rgba => {
+                Ok((DynamicImage::ImageRgba8(
+                    image::RgbaImage::from_raw(info.width, info.height, data)
+                        .ok_or("Failed to create rgba image")?,
+                ), tags))
+            }
+        }
     }
 }
 

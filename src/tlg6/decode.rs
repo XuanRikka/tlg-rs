@@ -1,11 +1,12 @@
 use std::error::Error;
 use std::io::{Cursor, Read, Seek};
 
+#[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
 
 use crate::slide::SlideDecoder;
 use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
-use crate::tlg_type::TlgDecoderTrait;
+use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait};
 
 use super::bitstream::TLG6BitReader;
 use super::golomb::decode_golomb_channel;
@@ -18,8 +19,27 @@ pub struct Tlg6Decoder {
     data: Vec<u8>,
 }
 
-impl Tlg6Decoder {
-    fn decode_inner(&self) -> Result<DynamicImage, Box<dyn Error>> {
+
+impl TlgDecoderTrait for Tlg6Decoder {
+    fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn Error>> {
+        let data = std::fs::read(path)?;
+        Self::from_data(data)
+    }
+
+    fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self, Box<dyn Error>> {
+        let mut data = Vec::new();
+        reader.read_to_end(&mut data)?;
+        Self::from_data(data)
+    }
+
+    fn from_data(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
+        if data.len() < 27 {
+            return Err("Data too short for TLG6".into());
+        }
+        Ok(Tlg6Decoder { data })
+    }
+
+    fn decode(self) -> Result<(Vec<u8>, ImageInfo), Box<dyn Error>> {
         let mut cur = Cursor::new(&self.data);
 
         // ---- read header (magic already consumed by check in from_data) ----
@@ -216,29 +236,34 @@ impl Tlg6Decoder {
             }
         }
 
-        // Convert to DynamicImage
+        let pixel_layout = match colors {
+            1 => PixelLayout::Gray,
+            3 => PixelLayout::Rgb,
+            4 => PixelLayout::Rgba,
+            _ => return Err("Unsupported color count".into()),
+        };
+
+        let info = ImageInfo {
+            width: width as u32,
+            height: height as u32,
+            pixel_layout
+        };
+
         match colors {
             1 => {
                 // Extract luma from B channel of BGRA buffer
                 let luma: Vec<u8> = out.iter().step_by(4).copied().collect();
-                Ok(DynamicImage::ImageLuma8(
-                    image::GrayImage::from_raw(width as u32, height as u32, luma)
-                        .ok_or("Failed to create gray image")?,
-                ))
+                Ok((luma, info))
             }
             3 => {
-                // BGRA → RGBA
-                let mut rgba = vec![0u8; width * height * 4];
+                // BGRA → RGB
+                let mut rgb = vec![0u8; width * height * 3];
                 for i in (0..out.len()).step_by(4) {
-                    rgba[i] = out[i + 2];     // R ← B
-                    rgba[i + 1] = out[i + 1]; // G ← G
-                    rgba[i + 2] = out[i];     // B ← R
-                    rgba[i + 3] = 0xff;
+                    rgb[i] = out[i + 2];     // R ← B
+                    rgb[i + 1] = out[i + 1]; // G ← G
+                    rgb[i + 2] = out[i];     // B ← R
                 }
-                Ok(DynamicImage::ImageRgba8(
-                    image::RgbaImage::from_raw(width as u32, height as u32, rgba)
-                        .ok_or("Failed to create rgba image")?,
-                ))
+                Ok((rgb, info))
             }
             4 => {
                 // BGRA → RGBA
@@ -249,12 +274,36 @@ impl Tlg6Decoder {
                     rgba[i + 2] = out[i];     // B ← R
                     rgba[i + 3] = out[i + 3]; // A ← A
                 }
+                Ok((rgba, info))
+            }
+            _ => Err("Unsupported color count".into()),
+        }
+    }
+
+    #[cfg(any(test, feature = "image"))]
+    fn decode_to_image(self) -> Result<DynamicImage, Box<dyn Error>> {
+        let (data, info) = self.decode()?;
+
+        match info.pixel_layout
+        {
+            PixelLayout::Gray => {
+                Ok(DynamicImage::ImageRgb8(
+                    image::RgbImage::from_raw(info.width, info.height, data)
+                        .ok_or("Failed to create gray image")?,
+                ))
+            },
+            PixelLayout::Rgb => {
+                Ok(DynamicImage::ImageRgb8(
+                    image::RgbImage::from_raw(info.width, info.height, data)
+                        .ok_or("Failed to create rgb image")?,
+                ))
+            },
+            PixelLayout::Rgba => {
                 Ok(DynamicImage::ImageRgba8(
-                    image::RgbaImage::from_raw(width as u32, height as u32, rgba)
+                    image::RgbaImage::from_raw(info.width, info.height, data)
                         .ok_or("Failed to create rgba image")?,
                 ))
             }
-            _ => Err("Unsupported color count".into()),
         }
     }
 }
@@ -464,34 +513,6 @@ fn write_u32_le(data: &mut [u8], offset: usize, value: u32) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// TlgDecoderTrait impl
-// ---------------------------------------------------------------------------
-
-impl TlgDecoderTrait for Tlg6Decoder {
-    fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn Error>> {
-        let data = std::fs::read(path)?;
-        Self::from_data(data)
-    }
-
-    fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self, Box<dyn Error>> {
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
-        Self::from_data(data)
-    }
-
-    fn from_data(data: Vec<u8>) -> Result<Self, Box<dyn Error>> {
-        if data.len() < 27 {
-            return Err("Data too short for TLG6".into());
-        }
-        Ok(Tlg6Decoder { data })
-    }
-
-    fn decode(self) -> Result<DynamicImage, Box<dyn Error>> {
-        self.decode_inner()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -502,7 +523,7 @@ mod tests {
         let encoder = Tlg6Encoder::from_image(img).unwrap();
         let data = encoder.encode().unwrap();
         let decoder = Tlg6Decoder::from_data(data).unwrap();
-        let decoded = decoder.decode().unwrap();
+        let decoded = decoder.decode_to_image().unwrap();
 
         assert_eq!(img.width(), decoded.width());
         assert_eq!(img.height(), decoded.height());

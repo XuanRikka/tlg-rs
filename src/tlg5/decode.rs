@@ -4,11 +4,13 @@ use std::io::{Cursor, Read, Seek};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt};
+
+#[cfg(any(test, feature = "image"))]
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
 
 use super::{BLOCK_HEIGHT, TLG5_MAGIC};
 use crate::slide::SlideDecoder;
-use crate::tlg_type::{PixelLayout, TlgDecoderTrait};
+use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait};
 
 pub struct Tlg5Decoder {
     data: Vec<u8>,
@@ -41,7 +43,7 @@ impl TlgDecoderTrait for Tlg5Decoder {
         Ok(Tlg5Decoder { data })
     }
 
-    fn decode(self) -> Result<DynamicImage, Box<dyn Error>> {
+    fn decode(self) -> Result<(Vec<u8>, ImageInfo), Box<dyn Error>> {
         let mut cur = Cursor::new(&self.data);
 
         let mut magic = [0u8; TLG5_MAGIC.len()];
@@ -170,19 +172,45 @@ impl TlgDecoderTrait for Tlg5Decoder {
             }
         }
 
-        match pixel_layout {
-            PixelLayout::Gray => Ok(DynamicImage::ImageLuma8(
-                GrayImage::from_raw(width as u32, height as u32, output)
-                    .ok_or("failed to build gray image")?,
-            )),
-            PixelLayout::Rgb => Ok(DynamicImage::ImageRgb8(
-                RgbImage::from_raw(width as u32, height as u32, output)
-                    .ok_or("failed to build rgb image")?,
-            )),
-            PixelLayout::Rgba => Ok(DynamicImage::ImageRgba8(
-                RgbaImage::from_raw(width as u32, height as u32, output)
-                    .ok_or("failed to build rgba image")?,
-            )),
+        let info = ImageInfo {
+            width: width as u32,
+            height: height as u32,
+            pixel_layout
+        };
+
+        Ok((output, info))
+    }
+
+    #[cfg(any(test, feature = "image"))]
+    fn decode_to_image(self) -> Result<DynamicImage, Box<dyn Error>> {
+        let (data, info) = self.decode()?;
+
+        match info.pixel_layout
+        {
+            PixelLayout::Gray => {
+                Ok(
+                    DynamicImage::ImageLuma8(
+                        GrayImage::from_raw(info.width, info.height, data).
+                            ok_or("failed to build gray image")?
+                    )
+                )
+            },
+            PixelLayout::Rgb => {
+                Ok(
+                    DynamicImage::ImageRgb8(
+                        RgbImage::from_raw(info.width, info.height, data).
+                            ok_or("failed to build rgb image")?
+                    )
+                )
+            },
+            PixelLayout::Rgba => {
+                Ok(
+                    DynamicImage::ImageRgba8(
+                        RgbaImage::from_raw(info.width, info.height, data).
+                            ok_or("failed to build rgba image")?
+                    )
+                )
+            }
         }
     }
 }
@@ -207,7 +235,7 @@ mod tests {
         );
 
         let encoded = Tlg5Encoder::from_image(&image).unwrap().encode().unwrap();
-        let decoded = Tlg5Decoder::from_data(encoded).unwrap().decode().unwrap();
+        let decoded = Tlg5Decoder::from_data(encoded).unwrap().decode_to_image().unwrap();
 
         assert_eq!(decoded.into_bytes(), data);
     }
@@ -229,7 +257,7 @@ mod tests {
             DynamicImage::ImageRgb8(RgbImage::from_raw(width, height, data.clone()).expect("rgb"));
 
         let encoded = Tlg5Encoder::from_image(&image).unwrap().encode().unwrap();
-        let decoded = Tlg5Decoder::from_data(encoded).unwrap().decode().unwrap();
+        let decoded = Tlg5Decoder::from_data(encoded).unwrap().decode_to_image().unwrap();
 
         assert_eq!(decoded.into_bytes(), data);
     }
@@ -253,7 +281,7 @@ mod tests {
         );
 
         let encoded = Tlg5Encoder::from_image(&image).unwrap().encode().unwrap();
-        let decoded = Tlg5Decoder::from_data(encoded).unwrap().decode().unwrap();
+        let decoded = Tlg5Decoder::from_data(encoded).unwrap().decode_to_image().unwrap();
 
         assert_eq!(decoded.into_bytes(), data);
     }

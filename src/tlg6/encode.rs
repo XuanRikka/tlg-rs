@@ -1,6 +1,9 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, SeekFrom, Write};
+
+#[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
+
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
 use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
 use crate::slide::SlideEncoder;
@@ -254,6 +257,7 @@ impl TlgEncoderTrait for Tlg6Encoder {
         Ok(cursor.into_inner())
     }
 
+    #[cfg(any(test, feature = "image"))]
     fn from_image(image: &DynamicImage) -> Result<Tlg6Encoder, Box<dyn Error>> {
         match image {
             DynamicImage::ImageLuma8(img) => {

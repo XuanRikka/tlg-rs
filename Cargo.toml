@@ -21,7 +21,7 @@ debug = "full"
 
 [dependencies]
 byteorder = "1.5.0"
-image = { version = "0.25.10", default-features = false }
+image = { version = "0.25.10", default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = "0.8.2"
@@ -29,6 +29,7 @@ rand = "0.10.0"
 
 [features]
 __bench = []
+image = ["dep:image"]
 
 [[bench]]
 name = "slide-encode"
