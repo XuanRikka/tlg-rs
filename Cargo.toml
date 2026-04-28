@@ -7,7 +7,7 @@ authors = ["XuanRikka <xuanrikka@qq.com>"]
 repository = "https://github.com/XuanRikka/tlg-rs"
 description = "A pure Rust crate for the KrKr2 tlg image format"
 keywords = ["image", "tlg", "krkr"]
-categories = ["image"]
+categories = ["multimedia::encoding", "multimedia::images"]
 
 [lib]
 name = "tlg"
