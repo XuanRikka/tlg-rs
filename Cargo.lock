@@ -650,7 +650,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tlg"
+name = "tlg-rs"
 version = "0.1.0"
 dependencies = [
  "byteorder",
