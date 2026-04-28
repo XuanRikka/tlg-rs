@@ -251,28 +251,32 @@ impl TlgDecoderTrait for Tlg6Decoder {
 
         match colors {
             1 => {
-                // Extract luma from B channel of BGRA buffer
-                let luma: Vec<u8> = out.iter().step_by(4).copied().collect();
+                // BGRA → Luma (从 B 通道提取亮度)
+                let luma: Vec<u8> = out.chunks_exact(4)
+                    .map(|chunk| chunk[0])
+                    .collect();
                 Ok((luma, info))
             }
             3 => {
                 // BGRA → RGB
                 let mut rgb = vec![0u8; width * height * 3];
-                for i in (0..out.len()).step_by(4) {
-                    rgb[i] = out[i + 2];     // R ← B
-                    rgb[i + 1] = out[i + 1]; // G ← G
-                    rgb[i + 2] = out[i];     // B ← R
+                for (i, chunk) in out.chunks_exact(4).enumerate() {
+                    let idx = i * 3;
+                    rgb[idx]     = chunk[2]; // R ← B
+                    rgb[idx + 1] = chunk[1]; // G ← G
+                    rgb[idx + 2] = chunk[0]; // B ← R
                 }
                 Ok((rgb, info))
             }
             4 => {
                 // BGRA → RGBA
                 let mut rgba = vec![0u8; width * height * 4];
-                for i in (0..out.len()).step_by(4) {
-                    rgba[i] = out[i + 2];     // R ← B
-                    rgba[i + 1] = out[i + 1]; // G ← G
-                    rgba[i + 2] = out[i];     // B ← R
-                    rgba[i + 3] = out[i + 3]; // A ← A
+                for (i, chunk) in out.chunks_exact(4).enumerate() {
+                    let idx = i * 4;
+                    rgba[idx]     = chunk[2]; // R ← B
+                    rgba[idx + 1] = chunk[1]; // G ← G
+                    rgba[idx + 2] = chunk[0]; // B ← R
+                    rgba[idx + 3] = chunk[3]; // A ← A
                 }
                 Ok((rgba, info))
             }
@@ -287,8 +291,8 @@ impl TlgDecoderTrait for Tlg6Decoder {
         match info.pixel_layout
         {
             PixelLayout::Gray => {
-                Ok(DynamicImage::ImageRgb8(
-                    image::RgbImage::from_raw(info.width, info.height, data)
+                Ok(DynamicImage::ImageLuma8(
+                    image::GrayImage::from_raw(info.width, info.height, data)
                         .ok_or("Failed to create gray image")?,
                 ))
             },
