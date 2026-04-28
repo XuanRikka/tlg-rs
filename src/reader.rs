@@ -11,6 +11,7 @@ use image::DynamicImage;
 use crate::SDS_MAGIC;
 use crate::tlg5::{Tlg5Decoder, TLG5_MAGIC};
 use crate::tlg6::{Tlg6Decoder, TLG6_MAGIC};
+#[allow(unused_imports)]
 use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait, TlgType};
 use crate::tlg_type::TlgType::{Tlg5, Tlg6};
 
