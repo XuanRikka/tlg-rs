@@ -60,6 +60,7 @@ pub trait TlgEncoderTrait {
 
 
 pub trait TlgDecoderTrait {
+    #[cfg(not(target_arch = "wasm32"))]
     fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>>
     where
         Self: Sized;

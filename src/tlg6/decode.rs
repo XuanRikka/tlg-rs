@@ -21,6 +21,7 @@ pub struct Tlg6Decoder {
 
 
 impl TlgDecoderTrait for Tlg6Decoder {
+    #[cfg(not(target_arch = "wasm32"))]
     fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn Error>> {
         let data = std::fs::read(path)?;
         Self::from_data(data)

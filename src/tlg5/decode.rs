@@ -17,6 +17,7 @@ pub struct Tlg5Decoder {
 }
 
 impl TlgDecoderTrait for Tlg5Decoder {
+    #[cfg(not(target_arch = "wasm32"))]
     fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>>
     where
         Self: Sized,
