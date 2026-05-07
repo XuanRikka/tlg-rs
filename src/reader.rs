@@ -130,11 +130,6 @@ impl<R: Read + Seek> TlgReader<R>
 }
 
 impl TlgReader<BufReader<File>> {
-    pub fn from_file(file: File) -> Self
-    {
-        TlgReader::new(BufReader::new(file))
-    }
-
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>>
     {
         let file = File::open(path)?;
