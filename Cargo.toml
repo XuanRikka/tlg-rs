@@ -1,6 +1,6 @@
 [package]
 name = "tlg-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 authors = ["XuanRikka <xuanrikka@qq.com>"]
@@ -14,7 +14,7 @@ name = "tlg"
 crate-type = ["rlib"]
 
 [profile.release]
-debug = "full"
+opt-level = 3
 
 [profile.bench]
 debug = "full"
