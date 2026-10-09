@@ -18,9 +18,15 @@ impl SlideDecoder {
         self.text[..len].copy_from_slice(&data[..len]);
     }
 
-    pub fn decode(&mut self, input: &[u8]) -> Vec<u8> {
+    pub fn decode(&mut self, input: &[u8]) -> Vec<u8>
+    {
         let mut out = Vec::new();
+        self.decode_into(input, &mut out);
+        out
+    }
 
+    pub fn decode_into(&mut self, input: &[u8], out: &mut Vec<u8>)
+    {
         let mut i = 0;
         let mut mask: u8 = 0;
         let mut code: u8 = 0;
@@ -85,7 +91,5 @@ impl SlideDecoder {
 
             mask <<= 1;
         }
-
-        out
     }
 }
