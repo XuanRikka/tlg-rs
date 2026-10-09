@@ -6,7 +6,7 @@ use image::DynamicImage;
 
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
 use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
-use crate::slide::SlideEncoder;
+use slide::SlideEncoder;
 
 use super::bitstream::TLG6BitStream;
 use super::golomb::compress_values_golomb;

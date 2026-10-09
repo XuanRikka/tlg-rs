@@ -9,8 +9,8 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
 
 use super::{BLOCK_HEIGHT, TLG5_MAGIC};
-use crate::slide::SlideDecoder;
 use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait};
+use slide::SlideDecoder;
 
 pub struct Tlg5Decoder {
     data: Vec<u8>,

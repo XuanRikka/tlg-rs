@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, Write, SeekFrom};
-use crate::slide::SlideEncoder;
 use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
 use super::{TLG5_MAGIC,BLOCK_HEIGHT};
+use slide::SlideEncoder;
 
 #[cfg(any(test, feature = "image"))]
 use image::DynamicImage;

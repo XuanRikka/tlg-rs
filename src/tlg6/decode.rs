@@ -4,9 +4,9 @@ use std::io::{Cursor, Read, Seek};
 #[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
 
-use crate::slide::SlideDecoder;
 use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
 use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait};
+use slide::SlideDecoder;
 
 use super::bitstream::TLG6BitReader;
 use super::golomb::decode_golomb_channel;

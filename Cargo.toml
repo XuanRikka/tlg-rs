@@ -22,56 +22,13 @@ debug = "full"
 [dependencies]
 byteorder = "1.5.0"
 image = { version = "0.25.10", default-features = false, optional = true }
-
-[dev-dependencies]
-criterion = "0.8.2"
-rand = "0.10.0"
+slide = { path = "slide" }
 
 [features]
 default = ["image"]
-__bench = []
 image = ["dep:image"]
 
-[[bench]]
-name = "slide-encode"
-harness = false
-path = "benches/slide_encode.rs"
-required-features = ["__bench"]
-
-[[bench]]
-name = "slide-decode"
-harness = false
-path = "benches/slide_decode.rs"
-required-features = ["__bench"]
-
-#[[bench]]
-#name = "tlg5-encode"
-#harness = false
-#path = "bench/tlg5_encode.rs"
-#
-#[[bench]]
-#name = "tlg5-decode"
-#harness = false
-#path = "bench/tlg5_decode.rs"
-#
-#[[bench]]
-#name = "tlg6-encode"
-#harness = false
-#path = "bench/tlg6_encode.rs"
-#
-#[[bench]]
-#name = "tlg6-decode"
-#harness = false
-#path = "bench/tlg6_decode.rs"
-
-[[bench]]
-name = "tlg6-bit-stream"
-harness = false
-path = "benches/tlg6_bit_stream.rs"
-required-features = ["__bench"]
-
-[[bench]]
-name = "tlg6-bit-reader"
-harness = false
-path = "benches/tlg6_bit_reader.rs"
-required-features = ["__bench"]
+[workspace]
+members = [
+    "slide"
+]

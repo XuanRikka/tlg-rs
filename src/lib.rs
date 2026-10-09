@@ -3,10 +3,6 @@ pub mod tlg6;
 pub mod tlg_type;
 pub mod writer;
 pub mod reader;
-#[cfg(any(test, feature = "__bench"))]
-pub mod slide;
-#[cfg(not(any(test, feature = "__bench")))]
-pub(crate) mod slide;
 
 pub use writer::TlgWriter;
 pub use reader::TlgReader;
