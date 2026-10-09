@@ -12,8 +12,8 @@ use crate::SDS_MAGIC;
 use crate::tlg5::{Tlg5Decoder, TLG5_MAGIC};
 use crate::tlg6::{Tlg6Decoder, TLG6_MAGIC};
 #[allow(unused_imports)]
-use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait, TlgType};
-use crate::tlg_type::TlgType::{Tlg5, Tlg6};
+use crate::{ImageInfo, PixelLayout, TlgDecoderTrait, TlgType};
+use crate::TlgType::{Tlg5, Tlg6};
 
 
 pub struct TlgReader<R: Read + Seek>

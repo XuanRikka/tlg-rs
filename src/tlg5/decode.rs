@@ -9,7 +9,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use image::{DynamicImage, GrayImage, RgbImage, RgbaImage};
 
 use super::{BLOCK_HEIGHT, TLG5_MAGIC};
-use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait};
+use crate::{ImageInfo, PixelLayout, TlgDecoderTrait};
 use slide::SlideDecoder;
 
 pub struct Tlg5Decoder {
@@ -222,7 +222,7 @@ mod tests {
 
     use super::Tlg5Decoder;
     use crate::tlg5::encode::Tlg5Encoder;
-    use crate::tlg_type::{TlgDecoderTrait, TlgEncoderTrait};
+    use crate::{TlgDecoderTrait, TlgEncoderTrait};
 
     #[test]
     fn roundtrip_gray() {

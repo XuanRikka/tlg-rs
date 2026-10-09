@@ -4,7 +4,7 @@ use std::io::{Cursor, Seek, SeekFrom, Write};
 #[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
 
-use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
+use crate::{PixelLayout, TlgEncoderTrait};
 use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
 use slide::SlideEncoder;
 

@@ -5,7 +5,7 @@ use std::io::{Cursor, Read, Seek};
 use image::DynamicImage;
 
 use crate::tlg6::{TLG6_MAGIC, H_BLOCK_SIZE, W_BLOCK_SIZE};
-use crate::tlg_type::{ImageInfo, PixelLayout, TlgDecoderTrait};
+use crate::{ImageInfo, PixelLayout, TlgDecoderTrait};
 use slide::SlideDecoder;
 
 use super::bitstream::TLG6BitReader;
@@ -521,7 +521,7 @@ fn write_u32_le(data: &mut [u8], offset: usize, value: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tlg_type::TlgEncoderTrait;
+    use crate::TlgEncoderTrait;
     use crate::tlg6::Tlg6Encoder;
 
     fn roundtrip(img: &DynamicImage) {

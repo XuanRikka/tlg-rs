@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, Write, SeekFrom};
-use crate::tlg_type::{PixelLayout, TlgEncoderTrait};
+use crate::{PixelLayout, TlgEncoderTrait};
 use super::{TLG5_MAGIC,BLOCK_HEIGHT};
 use slide::SlideEncoder;
 
