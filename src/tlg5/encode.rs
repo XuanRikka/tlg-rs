@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, Write, SeekFrom};
+use byteorder::{LittleEndian, WriteBytesExt};
 use crate::{PixelLayout, TlgEncoderTrait};
 use super::{TLG5_MAGIC,BLOCK_HEIGHT};
 use slide::SlideEncoder;
@@ -34,14 +35,14 @@ impl TlgEncoderTrait for Tlg5Encoder
             PixelLayout::Gray => 1u8,
             PixelLayout::Rgb => 3u8,
             PixelLayout::Rgba => 4u8,
-        };
+        } as usize;
 
         // 写入头部
         inner.write_all(TLG5_MAGIC)?;
-        inner.write_all(&[colors])?;
-        inner.write_all(&self.width.to_le_bytes())?;
-        inner.write_all(&self.height.to_le_bytes())?;
-        inner.write_all(&(BLOCK_HEIGHT as u32).to_le_bytes())?;
+        inner.write_u8(colors as u8)?;
+        inner.write_u32::<LittleEndian>(self.width)?;
+        inner.write_u32::<LittleEndian>(self.height)?;
+        inner.write_u32::<LittleEndian>(BLOCK_HEIGHT as u32)?;
 
         let width = self.width as usize;
         let height = self.height as usize;
@@ -50,16 +51,15 @@ impl TlgEncoderTrait for Tlg5Encoder
         // 占位写入块大小表
         let block_size_pos = inner.stream_position()?;
         for _ in 0..block_count {
-            inner.write_all(&0u32.to_le_bytes())?;
+            inner.write_u32::<LittleEndian>(0u32)?;
         }
 
         let mut block_sizes = vec![0u32; block_count];
         let mut cmpbuf: Vec<Vec<u8>> = (0..colors)
             .map(|_| vec![0u8; width * BLOCK_HEIGHT])
             .collect();
-        let stride = width * colors as usize;
+        let stride = width * colors;
 
-        // 创建一个压缩器实例（复用）
         let mut compressor = SlideEncoder::new();
 
         for block in 0..block_count {
@@ -67,7 +67,6 @@ impl TlgEncoderTrait for Tlg5Encoder
             let ylim = (blk_y + BLOCK_HEIGHT).min(height);
             let mut inp = 0;
 
-            // ---- 填充当前块的 cmpbuf（与之前相同）----
             for y in blk_y..ylim {
                 let row = &self.data[y * stride..(y + 1) * stride];
                 let upper = if y > 0 {
@@ -79,10 +78,10 @@ impl TlgEncoderTrait for Tlg5Encoder
 
                 for x in 0..width {
                     let mut val = [0i32; 4];
-                    for c in 0..colors as usize {
-                        let cur = row[x * colors as usize + c] as i32;
+                    for c in 0..colors {
+                        let cur = row[x * colors + c] as i32;
                         let cl = if let Some(up) = upper {
-                            cur - up[x * colors as usize + c] as i32
+                            cur - up[x * colors + c] as i32
                         } else {
                             cur
                         };
@@ -108,25 +107,24 @@ impl TlgEncoderTrait for Tlg5Encoder
                 }
             }
 
-            // ---- 压缩并写入当前块的每个通道 ----
             let mut block_size = 0u32;
-            for c in 0..colors as usize {
+            for c in 0..colors {
                 let raw_data = &cmpbuf[c][..inp];
 
                 compressor.store();
 
                 let compressed = compressor.encode(raw_data);
                 if compressed.len() < raw_data.len() {
-                    // 压缩有效，保留压缩后的状态（不 Restore）
-                    inner.write_all(&[0])?;
-                    inner.write_all(&(compressed.len() as u32).to_le_bytes())?;
+                    // 压缩有效，保留压缩后的状态
+                    inner.write_u8(0)?;
+                    inner.write_u32::<LittleEndian>(compressed.len() as u32)?;
                     inner.write_all(&compressed)?;
                     block_size += 1 + 4 + compressed.len() as u32;
                 } else {
-                    // 压缩无效，恢复到压缩前的状态（Restore）
+                    // 压缩无效，恢复到压缩前的状态
                     compressor.restore();
-                    inner.write_all(&[1])?;
-                    inner.write_all(&(raw_data.len() as u32).to_le_bytes())?;
+                    inner.write_u8(1)?;
+                    inner.write_u32::<LittleEndian>(raw_data.len() as u32)?;
                     inner.write_all(raw_data)?;
                     block_size += 1 + 4 + raw_data.len() as u32;
                 }
@@ -138,7 +136,7 @@ impl TlgEncoderTrait for Tlg5Encoder
         let current_pos = inner.stream_position()?;
         inner.seek(SeekFrom::Start(block_size_pos))?;
         for size in block_sizes {
-            inner.write_all(&size.to_le_bytes())?;
+            inner.write_u32::<LittleEndian>(size)?;
         }
         inner.seek(SeekFrom::Start(current_pos))?;
 

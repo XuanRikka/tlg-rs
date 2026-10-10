@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::io::{Cursor, Seek, SeekFrom, Write};
-
+use byteorder::{LittleEndian, WriteBytesExt};
 #[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
 
@@ -43,10 +43,10 @@ impl TlgEncoderTrait for Tlg6Encoder {
 
         // ---- header ----
         inner.write_all(TLG6_MAGIC)?;
-        inner.write_all(&[colors as u8])?;
+        inner.write_u8(colors as u8)?;
         inner.write_all(&[0u8; 3])?; // data_flag, color_type, external_golomb_table
-        inner.write_all(&self.width.to_le_bytes())?;
-        inner.write_all(&self.height.to_le_bytes())?;
+        inner.write_u32::<LittleEndian>(self.width)?;
+        inner.write_u32::<LittleEndian>(self.height)?;
 
         // ---- write placeholder for max_bit_length ----
         let max_bit_pos = inner.stream_position()?;
@@ -222,7 +222,7 @@ impl TlgEncoderTrait for Tlg6Encoder {
         // ---- write max_bit_length ----
         let current_pos = inner.stream_position()?;
         inner.seek(SeekFrom::Start(max_bit_pos))?;
-        inner.write_all(&max_bit_length.to_le_bytes())?;
+        inner.write_u32::<LittleEndian>(max_bit_length)?;
         inner.seek(SeekFrom::Start(current_pos))?;
 
         // ---- write filter types (compressed with Slide/LZSS) ----
@@ -242,7 +242,7 @@ impl TlgEncoderTrait for Tlg6Encoder {
             slide.encode(&train);
         }
         let compressed = slide.encode(&filtertypes);
-        inner.write_all(&(compressed.len() as u32).to_le_bytes())?;
+        inner.write_u32::<LittleEndian>(compressed.len() as u32)?;
         inner.write_all(&compressed)?;
 
         // ---- write the compressed bitstream data ----

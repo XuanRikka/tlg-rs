@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::io::{Cursor, Read, Seek};
-
+use byteorder::{LittleEndian, ReadBytesExt};
 #[cfg(any(test, feature = "image"))]
 use image::DynamicImage;
 
@@ -59,14 +59,9 @@ impl TlgDecoderTrait for Tlg6Decoder {
 
         let mut wb = [0u8; 4];
 
-        cur.read_exact(&mut wb)?;
-        let width = u32::from_le_bytes(wb) as usize;
-
-        cur.read_exact(&mut wb)?;
-        let height = u32::from_le_bytes(wb) as usize;
-
-        cur.read_exact(&mut wb)?;
-        let _max_bit_length = u32::from_le_bytes(wb);
+        let width = cur.read_u32::<LittleEndian>()? as usize;
+        let height = cur.read_u32::<LittleEndian>()? as usize;
+        let _max_bit_length = cur.read_u32::<LittleEndian>()?;
 
         // ---- block counts ----
         let x_block_count = ((width + W_BLOCK_SIZE - 1) / W_BLOCK_SIZE).max(1);
@@ -76,8 +71,7 @@ impl TlgDecoderTrait for Tlg6Decoder {
 
         // ---- read filter types (LZSS compressed) ----
         let mut size_buf = [0u8; 4];
-        cur.read_exact(&mut size_buf)?;
-        let filter_size = u32::from_le_bytes(size_buf) as usize;
+        let filter_size = cur.read_u32::<LittleEndian>()? as usize;
 
         let mut filter_data = vec![0u8; filter_size];
         cur.read_exact(&mut filter_data)?;
