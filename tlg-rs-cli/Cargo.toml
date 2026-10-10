@@ -2,6 +2,11 @@
 name = "tlg-rs-cli"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line tool for converting KrKr2 TLG images to and from common formats"
+keywords = ["image", "tlg", "krkr", "converter", "cli"]
+categories = ["command-line-utilities", "multimedia::images"]
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }

@@ -2,7 +2,7 @@ name: Release
 
 # 触发：推送 vX.Y.Z tag；也可手动 workflow_dispatch（手动只构建，不发布）
 #
-# publish：把 tlg-rs、tlg-rs-cli 依次发布到 crates.io
+# publish：把 tlg-rs-slide, tlg-rs、tlg-rs-cli 依次发布到 crates.io
 # build  ：按矩阵构建工作区里的全部可执行文件
 # release：把可执行文件打包为 <主包包名>-<target>.tar.gz/.zip 挂到 GitHub Release
 #          Release 里只放可执行文件
@@ -132,7 +132,7 @@ jobs:
           }
 
           # 依赖顺序：tlg-rs 先于 tlg-rs-cli
-          for package in tlg-rs tlg-rs-cli; do
+          for package in tlg-rs-slide tlg-rs tlg-rs-cli; do
             publish_crate "$package"
           done
 

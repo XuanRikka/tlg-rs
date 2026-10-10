@@ -1,7 +1,13 @@
 [package]
-name = "slide"
+name = "tlg-rs-slide"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Internal crate for tlg-rs, do not use directly"
+
+[lib]
+name = "slide"
 
 [dependencies]
 
