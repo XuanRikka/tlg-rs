@@ -1,0 +1,16 @@
+[package]
+name = "tlg-rs-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+image = {
+    version = "0.25.10", default-features = false,
+    features = ["avif", "bmp", "dds", "jpeg", "png", "ff", "qoi", "pnm", "tga", "tiff", "rayon"]
+}
+tlg-rs = { path=".." }
+
+[[bin]]
+name = "tlg-rs"
+path = "src/main.rs"

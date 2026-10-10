@@ -19,7 +19,7 @@ pub enum TlgType
     Tlg6
 }
 
-pub struct  ImageInfo
+pub struct ImageInfo
 {
     pub width: u32,
     pub height: u32,
