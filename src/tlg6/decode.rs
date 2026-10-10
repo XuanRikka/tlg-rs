@@ -57,8 +57,6 @@ impl TlgDecoderTrait for Tlg6Decoder {
         let mut flags = [0u8; 3];
         cur.read_exact(&mut flags)?;
 
-        let mut wb = [0u8; 4];
-
         let width = cur.read_u32::<LittleEndian>()? as usize;
         let height = cur.read_u32::<LittleEndian>()? as usize;
         let _max_bit_length = cur.read_u32::<LittleEndian>()?;
@@ -70,7 +68,6 @@ impl TlgDecoderTrait for Tlg6Decoder {
         let fraction = width - main_count * W_BLOCK_SIZE;
 
         // ---- read filter types (LZSS compressed) ----
-        let mut size_buf = [0u8; 4];
         let filter_size = cur.read_u32::<LittleEndian>()? as usize;
 
         let mut filter_data = vec![0u8; filter_size];

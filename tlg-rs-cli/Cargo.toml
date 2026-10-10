@@ -15,7 +15,7 @@ image = {
     version = "0.25.10", default-features = false,
     features = ["avif", "bmp", "dds", "jpeg", "png", "ff", "qoi", "pnm", "tga", "tiff", "rayon"]
 }
-tlg-rs = { path=".." }
+tlg-rs = { path="..", version = "1.0.0" }
 
 [[bin]]
 name = "tlg-rs"

@@ -1269,13 +1269,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
-name = "slide"
-version = "1.0.0"
-dependencies = [
- "criterion",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1367,7 +1360,7 @@ dependencies = [
  "byteorder",
  "criterion",
  "image",
- "slide",
+ "tlg-rs-slide",
 ]
 
 [[package]]
@@ -1378,6 +1371,13 @@ dependencies = [
  "flate2",
  "image",
  "tlg-rs",
+]
+
+[[package]]
+name = "tlg-rs-slide"
+version = "1.0.0"
+dependencies = [
+ "criterion",
 ]
 
 [[package]]
