@@ -90,7 +90,9 @@ fn encode(args: EncodeArgs)
             raw
         }
         None => {
-            ImageReader::new(input_file).decode().expect("Failed to decode image.")
+            ImageReader::new(input_file)
+                .with_guessed_format().expect("The image format is not supported.")
+                .decode().expect("Failed to decode image.")
         }
     };
 

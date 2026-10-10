@@ -52,8 +52,8 @@ impl<R: Read + Seek> TlgReader<R>
             image_stream.read_exact(&mut raw_magic)?;
 
             image_stream.seek(SeekFrom::Start(start_pos))?;
-            tlg_type = if &magic == TLG5_MAGIC {Tlg5}
-                else if &magic == TLG6_MAGIC {Tlg6}
+            tlg_type = if &raw_magic == TLG5_MAGIC {Tlg5}
+                else if &raw_magic == TLG6_MAGIC {Tlg6}
                 else {return Err("Invalid magic".into())}
         }
         else {
