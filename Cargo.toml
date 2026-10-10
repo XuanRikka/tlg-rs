@@ -32,6 +32,14 @@ image = { version = "0.25.10", default-features = false, optional = true }
 slide = { path = "slide" }
 anyhow = { workspace = true }
 
+[dev-dependencies]
+criterion = "0.8.2"
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+
+[[bench]]
+name = "tlg5"
+harness = false
+
 [workspace.dependencies]
 anyhow = "1.0.104"
 
