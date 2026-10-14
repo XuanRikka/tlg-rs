@@ -3,7 +3,7 @@
 #
 #    maturin generate-ci github
 #
-name: CI
+name: tlg-rs-py CI
 defaults:
   run:
     working-directory: ./tlg-rs-py
@@ -48,7 +48,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist --find-interpreter --generate-stubs
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
       - name: Upload wheels
