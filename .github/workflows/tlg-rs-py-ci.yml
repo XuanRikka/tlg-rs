@@ -4,6 +4,9 @@
 #    maturin generate-ci github
 #
 name: CI
+defaults:
+  run:
+    working-directory: ./tlg-rs-py
 
 on:
   push:
