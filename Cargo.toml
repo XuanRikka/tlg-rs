@@ -51,5 +51,6 @@ image = ["dep:image"]
 resolver = "3"
 members = [
     "tlg-rs-slide",
-    "tlg-rs-cli"
+    "tlg-rs-cli",
+    "tlg-rs-py"
 ]

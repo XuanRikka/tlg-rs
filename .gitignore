@@ -3,7 +3,7 @@
 /slide/target
 /tlg-wic-codec
 /.claude
-
+/tlg-rs-py/.idea
 
 # Added by cargo
 #
