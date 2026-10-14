@@ -35,6 +35,7 @@ impl<R: Read + Seek> TlgReader<R>
 
     pub fn read(mut self) -> Result<(Vec<u8>, ImageInfo, HashMap<String, String>), Box<dyn Error>>
     {
+        let start = self.reader.stream_position()?;
         let mut magic = [0u8; 11];
         self.reader.read_exact(&mut magic)?;
 
@@ -57,10 +58,11 @@ impl<R: Read + Seek> TlgReader<R>
                 else {return Err("Invalid magic".into())}
         }
         else {
-            image_stream = self.reader.by_ref().take(u64::MAX);
             tlg_type = if &magic == TLG5_MAGIC {Tlg5}
                 else if &magic == TLG6_MAGIC {Tlg6}
-                else {return Err("Invalid magic".into())}
+                else {return Err("Invalid magic".into())};
+            self.reader.seek(SeekFrom::Start(start))?;
+            image_stream = self.reader.by_ref().take(u64::MAX);
         }
 
 
@@ -104,12 +106,12 @@ impl<R: Read + Seek> TlgReader<R>
     pub fn read_to_image(self) -> Result<(DynamicImage, HashMap<String, String>), Box<dyn Error>>
     {
         let (data, info, tags) = self.read()?;
-
+        
         match info.pixel_layout
         {
             PixelLayout::Gray => {
-                Ok((DynamicImage::ImageRgb8(
-                    image::RgbImage::from_raw(info.width, info.height, data)
+                Ok((DynamicImage::ImageLuma8(
+                    image::GrayImage::from_raw(info.width, info.height, data)
                         .ok_or("Failed to create gray image")?,
                 ), tags))
             },

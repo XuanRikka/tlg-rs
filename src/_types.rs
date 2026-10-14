@@ -19,6 +19,7 @@ pub enum TlgType
     Tlg6
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ImageInfo
 {
     pub width: u32,

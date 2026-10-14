@@ -150,6 +150,15 @@ impl TlgWriter {
         &self.tags
     }
 
+    pub fn tlg_type(&self) -> TlgType
+    {
+        match self.encoder
+        {
+            TlgEncoder::Tlg5(_) => TlgType::Tlg5,
+            TlgEncoder::Tlg6(_) => TlgType::Tlg6
+        }
+    }
+
     pub fn write_to<W: Write + Seek>(self, writer: &mut W) -> Result<(), Box<dyn Error>>
     {
         if !self.tags.is_empty() {
