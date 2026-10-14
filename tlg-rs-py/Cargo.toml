@@ -10,12 +10,6 @@ repository.workspace = true
 name = "tlg"
 crate-type = ["cdylib"]
 
-[tool.maturin]
-bindings = "pyo3"
-
-[target.x86_64-pc-windows-gnullvm]
-rustflags = ["-C", "target-feature=+crt-static"]
-
 [dependencies]
 pyo3 = { version = "0.29.0", features = ["experimental-inspect", "pyo3-macros"] }
 pyo3-file = "0.17.0"

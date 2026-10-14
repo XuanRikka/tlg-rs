@@ -15,6 +15,7 @@ dependencies = []
 
 [tool.maturin]
 module-name = "tlg"
+bindings = "pyo3"
 
 [[tool.uv.index]]
 url = "https://mirrors.huaweicloud.com/repository/pypi/simple/"
