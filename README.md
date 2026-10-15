@@ -5,7 +5,7 @@
 tlg是视觉小说引擎Kirikiri2(krkr2)内置的一种图片格式，常见有tlg5和tlg6两个版本。官方实现可参考[tlg-wic-codec](https://github.com/krkrz/tlg-wic-codec)。
 
 ## 这个项目做了什么
-- 将原 C/C++ 实现完全用 Rust 重写，保持高性能与内存安全；
+- 将原 C/C++ 实现完全用 Rust 重写，保证内存安全的前提下提供更高的性能；
 - 重新设计 API，使用更符合 Rust 习惯的接口；
 - 可选集成 [image-rs](https://github.com/image-rs/image) 生态，方便图片处理。
 
@@ -26,8 +26,7 @@ cargo add tlg-rs --no-default-features
 ```rust
 use std::fs::File;
 use std::io::BufReader;
-use tlg::tlg_type::TlgType;
-use tlg::{TlgReader, TlgWriter};
+use tlg::{TlgReader, TlgType, TlgWriter};
 
 fn main() {
     // 读取 tlg 文件
@@ -49,7 +48,7 @@ use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use tlg::tlg6::{Tlg6Decoder, Tlg6Encoder};
-use tlg::tlg_type::{TlgDecoderTrait, TlgEncoderTrait};
+use tlg::{TlgDecoderTrait, TlgEncoderTrait};
 
 fn main() {
     // 解码 tlg6 文件
@@ -65,6 +64,20 @@ fn main() {
 }
 ```
 > 注意：Tlg6Decoder/Tlg6Encoder和tlg5的版本均不支持包含元信息（tags）的tlg格式，如需处理tags请使用TlgReader/TlgWriter。
+
+把 `tlg::tlg6` 换成 `tlg::tlg5` 就是 tlg5 的用法。解码器实现了 `TlgDecoderTrait`（`from_path` / `from_reader` / `from_data` / `decode` / `decode_to_image`），编码器实现了 `TlgEncoderTrait`（`from_image` / `from_gray` / `from_rgb` / `from_rgba` / `from_raw` / `encode` / `encode_to`，以及 `width` / `height` / `pixel_layout`），所以 `Tlg6Decoder::from_path("aaa.tlg")`、`Tlg6Encoder::from_rgb(data, w, h)` 这类构造函数都可以直接用。
+
+## 命令行工具
+`tlg-rs-cli/` 提供 `tlg-rs` 命令，支持常见图片格式与 tlg 互转（依赖 image-rs 的全部格式特性）：
+
+```bash
+# 编码：PNG/JPEG/BMP… -> tlg，-v 指定版本（默认 6）
+tlg-rs encode input.png output.tlg -v 5
+tlg-rs encode input.png output.tlg -v 6
+
+# 解码：tlg -> PNG/JPEG/BMP…，版本自动识别
+tlg-rs decode output.tlg restored.png
+```
 
 ## 鸣谢
  - KrKr2引擎开发者
