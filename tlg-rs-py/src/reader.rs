@@ -30,17 +30,12 @@ impl PyTlgReader {
         let inner = self.inner.take().ok_or_else(|| {
             pyo3::exceptions::PyRuntimeError::new_err("reader already consumed")
         })?;
-        let res = inner.read();
-        if res.is_ok()
-        {
-            let (data, info, metadata) = res.unwrap();
-            Ok((data, info.into(), metadata))
-        }
-        else
-        {
-            let e = res.unwrap_err();
-            Err(pyo3::exceptions::PyIOError::new_err(e.to_string()))
-        }
+        inner.read()
+            .map(
+                |(data, info, metadata)|
+                    (data, info.into(), metadata)
+            )
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
     }
 
     fn __enter__(slf: Py<Self>) -> Py<Self> {

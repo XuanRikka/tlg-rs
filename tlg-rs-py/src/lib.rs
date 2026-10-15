@@ -2,6 +2,8 @@ pub(crate) mod _types;
 mod reader;
 mod writer;
 mod helper;
+pub mod tlg5;
+pub mod tlg6;
 
 use pyo3::prelude::*;
 
@@ -13,6 +15,10 @@ mod tlg {
     use crate::reader::PyTlgReader;
     #[pymodule_export]
     use crate::writer::PyTlgWriter;
+    #[pymodule_export]
+    use crate::tlg5::{PyTlg5Encoder, PyTlg5Decoder};
+    #[pymodule_export]
+    use crate::tlg6::{PyTlg6Encoder, PyTlg6Decoder};
     #[pymodule_export]
     use crate::helper::py_get_tlg_type;
 }

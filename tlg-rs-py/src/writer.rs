@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use pyo3::prelude::*;
 use pyo3::types::{PyTraceback, PyType};
 use pyo3::buffer::PyBuffer;
-use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::{PyIOError, PyRuntimeError};
 use pyo3_file::PyFileLikeObject;
+
 use tlg_core::{TlgWriter};
 use crate::_types::{PyPixelLayout, PyTlgType};
 
@@ -70,17 +71,8 @@ impl PyTlgWriter
         let inner = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("reader already consumed")
         })?;
-        let res = inner.write();
-        if res.is_ok()
-        {
-            let data = res.unwrap();
-            Ok(data)
-        }
-        else
-        {
-            let e = res.unwrap_err();
-            Err(pyo3::exceptions::PyIOError::new_err(e.to_string()))
-        }
+        inner.write()
+            .map_err(|e| PyIOError::new_err(e.to_string()))
     }
 
     fn write_to(&mut self, mut writer: PyFileLikeObject) -> PyResult<()>
@@ -88,17 +80,8 @@ impl PyTlgWriter
         let inner = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("reader already consumed")
         })?;
-        let res = inner.write_to(&mut writer);
-        if res.is_ok()
-        {
-            let data = res.unwrap();
-            Ok(data)
-        }
-        else
-        {
-            let e = res.unwrap_err();
-            Err(pyo3::exceptions::PyIOError::new_err(e.to_string()))
-        }
+        inner.write_to(&mut writer)
+            .map_err(|e| PyIOError::new_err(e.to_string()))
     }
 
     #[getter]
