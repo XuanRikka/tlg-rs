@@ -321,7 +321,7 @@ fn make_gt_mask(a: u32, b: u32) -> u32 {
 #[inline]
 fn packed_bytes_add(a: u32, b: u32) -> u32 {
     let tmp = (((a & b) << 1) + ((a ^ b) & 0xfefefefe)) & 0x01010100;
-    a.wrapping_add(b) - tmp
+    a.wrapping_add(b).wrapping_sub(tmp)
 }
 
 /// Byte-parallel MED (Median Edge Detector) on packed u32.
