@@ -1,14 +1,9 @@
-# 手工维护版本：非 abi3，按解释器分别构建 wheel（不使用 --find-interpreter 以精确控制版本）
 name: tlg-rs-py CI
 
 on:
   push:
-    branches:
-      - main
-      - master
     tags:
       - '*'
-  pull_request:
   workflow_dispatch:
 
 permissions:
